@@ -23,11 +23,19 @@ import {
 } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import api, { ContentItem, SpecialistProfile, RankingScore } from "../api/client";
+import api, { ContentItem, SpecialistProfile, RankingScore, thumbnailFallbackProps } from "../api/client";
 import RankingScoreCard from "../components/RankingScoreCard";
 import SpecialistOverviewModal from "../components/SpecialistOverviewModal";
 
 const badgeColors = { distinguished: "#E53935", elevated: "#1565C0", standard: "#616161" };
+
+const NAME_TITLES = new Set(["dr", "dr.", "prof", "prof.", "mr", "mr.", "mrs", "mrs.", "ms", "ms.", "miss"]);
+
+function firstName(displayName?: string | null): string {
+  const parts = (displayName ?? "").trim().split(/\s+/).filter(Boolean);
+  const meaningful = parts.filter((p) => !NAME_TITLES.has(p.toLowerCase()));
+  return meaningful[0] || parts[0] || "there";
+}
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -67,7 +75,7 @@ export default function Dashboard() {
       <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "center" }} mb={4}>
         <Box>
           <Typography variant="h4" fontWeight={700}>
-            Welcome back, {user?.displayName?.split(" ")[0]} 👋
+            Welcome back, {firstName(user?.displayName)} 👋
           </Typography>
           <Typography color="text.secondary" mt={0.5}>
             {user?.role === "student"
@@ -129,7 +137,7 @@ export default function Dashboard() {
                     : content.map((c) => (
                         <Box key={c.id} sx={{ display: "flex", alignItems: "center", gap: 2, py: 1.5, borderBottom: "1px solid", borderColor: "divider" }}>
                           {c.thumbnailUrl
-                            ? <Box component="img" src={c.thumbnailUrl} sx={{ width: 56, height: 36, borderRadius: 1, objectFit: "cover", flexShrink: 0 }} />
+                            ? <Box component="img" src={c.thumbnailUrl} sx={{ width: 56, height: 36, borderRadius: 1, objectFit: "cover", flexShrink: 0 }} {...thumbnailFallbackProps()} />
                             : <Avatar sx={{ bgcolor: "#1565C0", width: 40, height: 36, borderRadius: 1, fontSize: 11 }}>YT</Avatar>}
                           <Box flex={1} minWidth={0}>
                             <Typography variant="body2" fontWeight={600} noWrap>{c.title}</Typography>

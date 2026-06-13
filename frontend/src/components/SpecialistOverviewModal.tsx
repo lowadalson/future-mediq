@@ -51,9 +51,9 @@ export default function SpecialistOverviewModal({ specialistId, onClose }: Props
   const total = profile?.rankingScore ? Number(profile.rankingScore.totalScore) : 0;
 
   const metrics = profile?.rankingScore ? [
-    { label: "Curation Points", value: profile.rankingScore.curationPoints, max: 100, color: "#1565C0" },
-    { label: "Activity Points", value: profile.rankingScore.activityPoints, max: 500, color: "#2E7D32" },
-    { label: "External Score", value: Number(profile.rankingScore.externalScore), max: 30, color: "#F57C00" },
+    { label: "Curation Points", value: profile.rankingScore.curationPoints, max: 100, color: "#1565C0", decimals: 0 },
+    { label: "Activity Points", value: profile.rankingScore.activityPoints, max: 500, color: "#2E7D32", decimals: 0 },
+    { label: "External Score", value: Number(profile.rankingScore.externalScore), max: 30, color: "#F57C00", decimals: 1 },
   ] : [];
 
   return (
@@ -216,12 +216,12 @@ export default function SpecialistOverviewModal({ specialistId, onClose }: Props
                         <Box key={m.label}>
                           <Stack direction="row" justifyContent="space-between" mb={0.75}>
                             <Typography variant="body2" fontWeight={600}>{m.label}</Typography>
-                            <Typography variant="body2" fontWeight={800} color={m.color}>{Number(m.value).toFixed(0)}</Typography>
+                            <Typography variant="body2" fontWeight={800} color={m.color}>{Number(m.value).toFixed(m.decimals)}</Typography>
                           </Stack>
                           <LinearProgress variant="determinate" value={Math.min((Number(m.value) / m.max) * 100, 100)}
                             sx={{ height: 10, borderRadius: 5, bgcolor: m.color + "15",
                               "& .MuiLinearProgress-bar": { bgcolor: m.color, borderRadius: 5 } }} />
-                          <Typography variant="caption" color="text.disabled">{Number(m.value).toFixed(0)} / {m.max}</Typography>
+                          <Typography variant="caption" color="text.disabled">{Number(m.value).toFixed(m.decimals)} / {m.max}</Typography>
                         </Box>
                       ))}
                     </Stack>

@@ -15,12 +15,15 @@ import {
   LinearProgress,
   Tooltip,
   Rating,
+  Alert,
+  CircularProgress,
 } from "@mui/material";
-import { Search, VerifiedUser, ArrowForward, WorkspacePremium, LinkedIn, Star } from "@mui/icons-material";
+import { Search, VerifiedUser, ArrowForward, WorkspacePremium, LinkedIn, Star, TravelExplore } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import api, { SpecialistProfile } from "../api/client";
 import { SmartToy } from "@mui/icons-material";
 import SpecialistOverviewModal from "../components/SpecialistOverviewModal";
+import { useAuth } from "../contexts/AuthContext";
 
 const badgeConfig = {
   distinguished: { color: "#E53935", label: "Distinguished" },
@@ -30,14 +33,38 @@ const badgeConfig = {
 
 export default function Specialists() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [specialists, setSpecialists] = useState<SpecialistProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [enriching, setEnriching] = useState(false);
+  const [enrichMsg, setEnrichMsg] = useState<{ msg: string; ok: boolean } | null>(null);
 
-  useEffect(() => {
+  const canEnrich = user?.role === "specialist" || user?.role === "admin";
+
+  const loadSpecialists = () =>
     api.get<SpecialistProfile[]>("/specialists").then((r) => setSpecialists(r.data)).finally(() => setLoading(false));
-  }, []);
+
+  useEffect(() => { loadSpecialists(); }, []);
+
+  const handleEnrich = async () => {
+    setEnriching(true);
+    setEnrichMsg(null);
+    try {
+      const res = await api.post("/specialists/enrich");
+      setEnrichMsg({
+        msg: `Enriched ${res.data.updated} specialist(s) with live web data (${res.data.skipped} unchanged).`,
+        ok: true,
+      });
+      await loadSpecialists();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error || "Enrichment failed";
+      setEnrichMsg({ msg, ok: false });
+    } finally {
+      setEnriching(false);
+    }
+  };
 
   const filtered = specialists.filter((s) => {
     const q = search.toLowerCase();

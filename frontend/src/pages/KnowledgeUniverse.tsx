@@ -29,7 +29,7 @@ import {
   HourglassEmpty,
   CheckCircle,
 } from "@mui/icons-material";
-import api, { ContentItem } from "../api/client";
+import api, { ContentItem, thumbnailFallbackProps } from "../api/client";
 import { useAuth } from "../contexts/AuthContext";
 
 const statusConfig = {
@@ -182,7 +182,7 @@ export default function KnowledgeUniverse() {
                 <Grid item xs={12} sm={6} md={4} key={c.id}>
                   <Card sx={{ height: "100%", display: "flex", flexDirection: "column", transition: "transform 0.2s", "&:hover": { transform: "translateY(-2px)" } }}>
                     {c.thumbnailUrl
-                      ? <CardMedia component="img" height="160" image={c.thumbnailUrl} alt={c.title} sx={{ objectFit: "cover" }} />
+                      ? <CardMedia component="img" height="160" image={c.thumbnailUrl} alt={c.title} sx={{ objectFit: "cover" }} {...thumbnailFallbackProps()} />
                       : <Box sx={{ height: 160, bgcolor: "#1A1A2E", display: "flex", alignItems: "center", justifyContent: "center" }}>
                           <YouTube sx={{ fontSize: 48, color: "#FF0000" }} />
                         </Box>}

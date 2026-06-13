@@ -9,12 +9,28 @@ export type OrganicResult = {
   image: string | null;
 };
 
-// Run a single Google search through the SERP API and return organic results.
-// Appending `brd_json=1` makes Bright Data return parsed JSON instead of HTML.
-export async function serpSearch(
+// A Google "knowledge panel" (the info card for a place/person/org), which is
+// where Google surfaces ratings, review counts and contact details.
+export type KnowledgePanel = {
+  name: string | null;
+  rating: number | null;
+  reviewsCount: number | null;
+  site: string | null;
+};
+
+// Parses a possibly-formatted numeric string (e.g. "4.8", "679", "1,234") to a number.
+function toNumber(value: unknown): number | null {
+  if (value == null) return null;
+  const n = Number(String(value).replace(/[^\d.]/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+// Runs a single Google search through the SERP API and returns the full parsed
+// JSON response. Appending `brd_json=1` makes Bright Data return parsed JSON.
+async function fetchSerpJson(
   query: string,
   opts: { num?: number; country?: string } = {}
-): Promise<OrganicResult[]> {
+): Promise<Record<string, unknown>> {
   const apiKey = process.env.BRIGHTDATA_API_KEY;
   const zone = process.env.BRIGHTDATA_SERP_ZONE || "serp_api1";
   if (!apiKey || apiKey === "your_brightdata_key_here") {
@@ -40,21 +56,28 @@ export async function serpSearch(
   }
 
   const raw = await res.text();
-  let data: { organic?: unknown[]; results?: unknown[] };
   try {
-    data = JSON.parse(raw);
+    return JSON.parse(raw) as Record<string, unknown>;
   } catch {
     throw new Error("Bright Data returned a non-JSON response (is brd_json supported on this zone?)");
   }
+}
 
-  const organic = (data.organic ?? data.results ?? []) as Array<{
+// Run a single Google search and return organic results.
+export async function serpSearch(
+  query: string,
+  opts: { num?: number; country?: string } = {}
+): Promise<OrganicResult[]> {
+  const data = await fetchSerpJson(query, opts);
+
+  const organic = ((data.organic ?? data.results ?? []) as Array<{
     title?: string;
     link?: string;
     url?: string;
     description?: string;
     snippet?: string;
     image?: string;
-  }>;
+  }>);
 
   return organic
     .map((o) => ({
@@ -64,4 +87,24 @@ export async function serpSearch(
       image: o.image ?? null,
     }))
     .filter((o) => o.title && o.link);
+}
+
+// Run a single Google search and return the knowledge-panel data (rating,
+// review count, etc.) if Google surfaced one, otherwise null.
+export async function serpKnowledge(
+  query: string,
+  opts: { num?: number; country?: string } = {}
+): Promise<KnowledgePanel | null> {
+  const data = await fetchSerpJson(query, opts);
+  const k = data.knowledge as
+    | { name?: string; rating?: unknown; reviews_cnt?: unknown; site?: string }
+    | undefined;
+  if (!k) return null;
+
+  return {
+    name: k.name ?? null,
+    rating: toNumber(k.rating),
+    reviewsCount: toNumber(k.reviews_cnt),
+    site: k.site ?? null,
+  };
 }

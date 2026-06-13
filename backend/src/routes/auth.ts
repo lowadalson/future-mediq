@@ -40,10 +40,15 @@ export default async function authRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       const { email, password } = request.body;
 
-      const user = await userRepo.findOne({
-        where: { email },
-        relations: ["specialistProfile", "specialistProfile.rankingScore", "studentProfile"],
-      });
+      // passwordHash has select:false, so re-select it explicitly for comparison.
+      const user = await userRepo
+        .createQueryBuilder("user")
+        .addSelect("user.passwordHash")
+        .leftJoinAndSelect("user.specialistProfile", "specialistProfile")
+        .leftJoinAndSelect("specialistProfile.rankingScore", "rankingScore")
+        .leftJoinAndSelect("user.studentProfile", "studentProfile")
+        .where("user.email = :email", { email })
+        .getOne();
       if (!user) return reply.status(401).send({ error: "Invalid credentials" });
 
       const valid = await bcrypt.compare(password, user.passwordHash);

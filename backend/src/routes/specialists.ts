@@ -3,11 +3,51 @@ import { SpecialistProfile } from "../entities/SpecialistProfile";
 import { RankingScore } from "../entities/RankingScore";
 import { User } from "../entities/User";
 import { recalculateRanking } from "../lib/rankingCalc";
+import { enrichSpecialist, runSpecialistEnrichment } from "../lib/specialistEnrich";
 
 export default async function specialistRoutes(fastify: FastifyInstance) {
   const profileRepo = fastify.db.getRepository(SpecialistProfile);
   const rankingRepo = fastify.db.getRepository(RankingScore);
   const userRepo = fastify.db.getRepository(User);
+
+  // Enrich every specialist with web data (Google rating/reviews, LinkedIn) via
+  // the Bright Data SERP. Restricted to specialists/admins since each call costs.
+  fastify.post("/enrich", { preHandler: [fastify.authenticate] }, async (request, reply) => {
+    const { id } = request.user as { id: string };
+    const user = await userRepo.findOneBy({ id });
+    if (!user || (user.role !== "admin" && user.role !== "specialist")) {
+      return reply.status(403).send({ error: "Specialist or admin only" });
+    }
+    try {
+      const summary = await runSpecialistEnrichment(fastify);
+      if (summary.updated === 0 && summary.errors.length > 0) {
+        return reply.status(502).send({ error: summary.errors[0], ...summary });
+      }
+      return summary;
+    } catch (e) {
+      return reply.status(500).send({ error: e instanceof Error ? e.message : "Enrichment failed" });
+    }
+  });
+
+  // Enrich a single specialist.
+  fastify.post<{ Params: { id: string } }>(
+    "/:id/enrich",
+    { preHandler: [fastify.authenticate] },
+    async (request, reply) => {
+      const profile = await profileRepo.findOneBy({ id: request.params.id });
+      if (!profile) return reply.status(404).send({ error: "Not found" });
+      try {
+        const { changed } = await enrichSpecialist(fastify, profile);
+        const fresh = await profileRepo.findOne({
+          where: { id: profile.id },
+          relations: ["rankingScore"],
+        });
+        return { profile: fresh, changed };
+      } catch (e) {
+        return reply.status(502).send({ error: e instanceof Error ? e.message : "Enrichment failed" });
+      }
+    }
+  );
 
   fastify.get<{ Querystring: { specialty?: string; verified?: string } }>(
     "/",

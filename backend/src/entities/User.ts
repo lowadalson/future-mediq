@@ -19,7 +19,9 @@ export class User {
   @Column({ unique: true })
   email!: string;
 
-  @Column()
+  // select: false keeps the hash out of every default query/serialization.
+  // The login route explicitly re-selects it via addSelect for comparison.
+  @Column({ select: false })
   passwordHash!: string;
 
   @Column({ nullable: true, type: "varchar" })

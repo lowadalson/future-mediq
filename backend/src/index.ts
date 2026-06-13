@@ -21,6 +21,7 @@ import { StudentProfile } from "./entities/StudentProfile";
 import { SpecialistProfile } from "./entities/SpecialistProfile";
 import { RankingScore } from "./entities/RankingScore";
 import { Activity } from "./entities/Activity";
+import { recalculateRanking } from "./lib/rankingCalc";
 import bcrypt from "bcrypt";
 
 declare module "fastify" {
@@ -63,10 +64,23 @@ async function bootstrap() {
   app.get("/health", async () => ({ status: "ok" }));
 
   await seed(app);
+  await syncRankings(app);
 
   const port = Number(process.env.PORT) || 3001;
   await app.listen({ port, host: "0.0.0.0" });
   console.log(`MEDIQ API running on http://localhost:${port}`);
+}
+
+// Ranking scores are a derived/cached value. Recompute them from the source of
+// truth (votes + verified activities + external profile metrics) on every boot
+// so stored scores always match the scoring formula. Without this, hand-seeded
+// scores drift from the formula and "jump" the first time a vote recalculates
+// a single specialist, leaving the leaderboard inconsistent.
+async function syncRankings(app: typeof Fastify.prototype) {
+  const specialists = await app.db.getRepository(SpecialistProfile).find();
+  for (const s of specialists) {
+    await recalculateRanking(app.db, s.id);
+  }
 }
 
 async function seed(app: typeof Fastify.prototype) {
@@ -168,12 +182,12 @@ async function seed(app: typeof Fastify.prototype) {
   const contentItems = [
     {
       source: "youtube" as const,
-      externalId: "Vf9fVXsXCFk",
-      title: "How the Heart Works – Cardiac Physiology Explained",
-      description: "A clear, animated explainer on how the heart pumps blood through the cardiovascular system. Perfect for students aged 11-18.",
-      url: "https://www.youtube.com/watch?v=Vf9fVXsXCFk",
-      thumbnailUrl: "https://img.youtube.com/vi/Vf9fVXsXCFk/hqdefault.jpg",
-      channelName: "Osmosis",
+      externalId: "ruM4Xxhx32U",
+      title: "How the Heart Actually Pumps Blood",
+      description: "A clear, animated TED-Ed explainer on how the heart pumps blood through the cardiovascular system. Perfect for students aged 11-18.",
+      url: "https://www.youtube.com/watch?v=ruM4Xxhx32U",
+      thumbnailUrl: "https://img.youtube.com/vi/ruM4Xxhx32U/hqdefault.jpg",
+      channelName: "TED-Ed",
       specialtyTags: ["cardiology"],
       ageSuitability: "11-14" as const,
       aiQualityScore: 4.7,
@@ -183,12 +197,12 @@ async function seed(app: typeof Fastify.prototype) {
     },
     {
       source: "youtube" as const,
-      externalId: "aR8d8GDXL8Y",
-      title: "Stroke: Pathophysiology, Symptoms & Treatment",
-      description: "Comprehensive overview of ischemic and hemorrhagic stroke for older students and pre-med learners.",
-      url: "https://www.youtube.com/watch?v=aR8d8GDXL8Y",
-      thumbnailUrl: "https://img.youtube.com/vi/aR8d8GDXL8Y/hqdefault.jpg",
-      channelName: "Armando Hasudungan",
+      externalId: "-NJm4TJ2it0",
+      title: "What Happens During a Stroke?",
+      description: "A TED-Ed lesson on what happens in the brain during ischemic and hemorrhagic stroke. Great for older students and pre-med learners.",
+      url: "https://www.youtube.com/watch?v=-NJm4TJ2it0",
+      thumbnailUrl: "https://img.youtube.com/vi/-NJm4TJ2it0/hqdefault.jpg",
+      channelName: "TED-Ed",
       specialtyTags: ["neurology"],
       ageSuitability: "15-18" as const,
       aiQualityScore: 4.5,
@@ -198,12 +212,12 @@ async function seed(app: typeof Fastify.prototype) {
     },
     {
       source: "youtube" as const,
-      externalId: "h9oDTMXbTAE",
-      title: "What Does a Surgeon Actually Do?",
-      description: "A day in the life of a general surgeon – operating theatres, patient rounds and decision making.",
-      url: "https://www.youtube.com/watch?v=h9oDTMXbTAE",
-      thumbnailUrl: "https://img.youtube.com/vi/h9oDTMXbTAE/hqdefault.jpg",
-      channelName: "Medscape",
+      externalId: "XPDVmBg5DeE",
+      title: "How Does Laser Eye Surgery Work?",
+      description: "A TED-Ed explainer on the science behind LASIK and laser eye surgery – optics, the cornea and surgical precision.",
+      url: "https://www.youtube.com/watch?v=XPDVmBg5DeE",
+      thumbnailUrl: "https://img.youtube.com/vi/XPDVmBg5DeE/hqdefault.jpg",
+      channelName: "TED-Ed",
       specialtyTags: ["surgery"],
       ageSuitability: "all" as const,
       aiQualityScore: 4.2,
@@ -213,12 +227,12 @@ async function seed(app: typeof Fastify.prototype) {
     },
     {
       source: "youtube" as const,
-      externalId: "T0JlMFdnlro",
-      title: "Cancer Immunotherapy Explained",
-      description: "Pending review – recent video on CAR-T cell therapy breakthroughs. Awaiting specialist curation.",
-      url: "https://www.youtube.com/watch?v=T0JlMFdnlro",
-      thumbnailUrl: "https://img.youtube.com/vi/T0JlMFdnlro/hqdefault.jpg",
-      channelName: "TED-Ed",
+      externalId: "wZeuIm_7INc",
+      title: "How Does Cancer Immunotherapy Work?",
+      description: "Pending review – an explainer on how immunotherapy harnesses the immune system to fight cancer. Awaiting specialist curation.",
+      url: "https://www.youtube.com/watch?v=wZeuIm_7INc",
+      thumbnailUrl: "https://img.youtube.com/vi/wZeuIm_7INc/hqdefault.jpg",
+      channelName: "UT MD Anderson Cancer Center",
       specialtyTags: ["oncology"],
       ageSuitability: "15-18" as const,
       aiQualityScore: 4.8,

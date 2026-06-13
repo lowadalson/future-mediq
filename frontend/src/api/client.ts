@@ -2,6 +2,25 @@ import axios from "axios";
 
 const api = axios.create({ baseURL: "/api" });
 
+// Neutral placeholder shown when a (usually external) thumbnail URL fails to load.
+export const THUMBNAIL_FALLBACK =
+  "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 320 180'%3E%3Crect width='320' height='180' fill='%231A1A2E'/%3E%3Cpolygon points='140,70 140,110 175,90' fill='%23FF3B3B'/%3E%3C/svg%3E";
+
+// Props that swap a broken <img> to THUMBNAIL_FALLBACK. The ref callback also
+// covers images that already failed before React attached the onError listener
+// (e.g. URLs the browser has cached as 404).
+export function thumbnailFallbackProps() {
+  const swap = (img: HTMLImageElement | null) => {
+    if (img && img.src !== THUMBNAIL_FALLBACK) img.src = THUMBNAIL_FALLBACK;
+  };
+  return {
+    onError: (e: React.SyntheticEvent<HTMLImageElement>) => swap(e.currentTarget),
+    ref: (img: HTMLImageElement | null) => {
+      if (img && img.complete && img.naturalWidth === 0) swap(img);
+    },
+  };
+}
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("mediq_token");
   if (token) config.headers.Authorization = `Bearer ${token}`;
