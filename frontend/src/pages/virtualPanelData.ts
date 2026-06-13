@@ -279,6 +279,46 @@ export const LLM_PROVIDERS: LLMProvider[] = [
       "Google Health meta-analysis of probiotic RCTs (n=847 trials) confirms substantial heterogeneity in efficacy driven by strain, dose, duration, and indication. AI-assisted evidence synthesis identifies Lactobacillus + Bifidobacterium combinations for IBS-D as the highest-quality evidence, followed by Saccharomyces boulardii for antibiotic-associated diarrhoea.",
     ],
   },
+  {
+    id: "minimax",
+    name: "MiniMax-M3",
+    fullName: "MiniMax M3 (via TokenRouter)",
+    color: "#FF6B35",
+    bgColor: "#FFF4EF",
+    logo: "◐",
+    responses: [
+      "Synthesising across the American Gut Project (n=10,000+), the Flemish Gut Flora Project, and TwinsUK simultaneously, the dominant signal is unambiguous: alpha-diversity (Shannon index) explains more variance in metabolic resilience than any single taxon. The optimisation takeaway is that breadth of plant intake (>30 species/week) delivers the highest marginal diversity gain per unit of dietary effort — a dominant strategy across every cohort I weigh.",
+      "Integrating vagal neurophysiology with microbial metabolite data, ~90% of gut-brain traffic is afferent, and short-chain fatty acids (butyrate, propionate) are the highest-leverage modifiable inputs. The trade-off worth optimising: fibre fermentation yields the largest mood-cognition return per calorie, outperforming targeted neuro-supplements on a cost-effectiveness basis across the trials I reconcile.",
+      "Weighing 42 cohort studies against mechanistic biomarker data, Bristol Stool Scale 3-4 plus faecal calprotectin <50 µg/g jointly maximise specificity for a 'healthy' classification. When two markers conflict, calprotectin should dominate the decision, since its sensitivity for mucosal inflammation outperforms transit-time proxies on every cost-benefit curve I compute.",
+      "Reconciling the Stanford 2021 fermented-food RCT with high-fibre intervention data, fermented foods win on diversity-per-effort while fibre wins on metabolite yield — the optimal allocation is both, not either. Across constrained budgets, 30 plant species weekly remains the single highest-ROI dietary lever, with fermented foods as the second-best independent additive.",
+      "Across an IBS evidence base of 650M+ affected people, network meta-analysis ranks low-FODMAP (NNT≈4), gut-directed hypnotherapy (NNT≈5), and TCAs (NNT≈5) above antispasmodics (NNT 8-12). The cost-effectiveness frontier clearly favours sequencing dietary and psychological therapy first, reserving pharmacology for non-responders — a trade-off most guidelines under-optimise.",
+      "Integrating the NEJM 2013 TMAO cohort (n=4,007) with dietary-shift trials, TMAO >6 µmol/L triples MACE risk, yet 87% of individuals normalise within 4 weeks of a plant-forward shift. The optimisation is striking: a low-cost dietary intervention dominates pharmacological TMAO suppression on both efficacy and cost across the datasets I synthesise.",
+      "Weighing birth-cohort and epigenetic studies together, the 0-3 year window is the highest-leverage intervention period of the entire lifespan — C-section, formula, and >3 antibiotic courses each add 20-40% adult risk. The dominant strategy is front-loading microbiome support early, since the marginal cost of early intervention is trivial relative to its lifelong return.",
+      "Reconciling lactulose:mannitol, serum zonulin, and LPS data, serum LPS >0.4 EU/mL emerges as the most decision-relevant permeability marker because it links directly to downstream atherosclerosis, T2D, and NAFLD endpoints. When markers disagree, LPS should carry the most weight in any cost-effective screening protocol.",
+      "Integrating acute-stress microbiome studies, cortisol cuts Lactobacillus and Bifidobacterium 40-60% within 24-72h while expanding Proteobacteria. The optimisation insight: stress management has an effect size comparable to antibiotic exposure, so for chronically stressed patients, behavioural intervention is often the highest-ROI 'microbiome therapy' available, not a supplement.",
+      "Across 300+ studied strains, only ~20 carry Level 1 evidence, and L. acidophilus NCFM + B. lactis Bi-07 dominates for IBS-D (NNT≈3.5). The cost-effectiveness conclusion is sharp: generic multi-strain products are dominated strategies — strain- and indication-matched prescribing is the only allocation that survives a rigorous trade-off analysis.",
+    ],
+  },
+  {
+    id: "seed",
+    name: "Seed-2.0-mini",
+    fullName: "ByteDance Seed 2.0 mini (via TokenRouter)",
+    color: "#14B8A6",
+    bgColor: "#F0FDFA",
+    logo: "❋",
+    responses: [
+      "Emerging generative-microbiome models trained on millions of shotgun metagenomes now predict diversity responses to diet before intervention. The forward-looking signal aligns with the American Gut Project: >30 plant species weekly maximises Shannon diversity, but next-generation models suggest personalised plant selection — matched to each person's baseline community — could outperform the blanket target within a few years.",
+      "Computational modelling of the gut-brain axis increasingly treats it as a closed feedback loop, with ~90% afferent vagal signalling and gut-derived serotonin (~90% of body total) as key state variables. The research horizon points to generative simulators that forecast individual mood responses to dietary change — turning the gut-brain axis from an observation into a predictable, personalised target.",
+      "Large-scale population data reframes 'gut health' as a dynamic trajectory rather than a fixed state: Bristol 3-4 and calprotectin <50 µg/g remain anchors, but longitudinal sensing reveals resilience — the speed of return to baseline after perturbation — as the emerging gold-standard metric that precision platforms are now beginning to quantify.",
+      "Generative analysis of dietary cohorts confirms the Stanford 2021 finding that fermented foods raise diversity and lower inflammatory markers, and forward-looking models suggest synbiotic personalisation — matching specific ferments to an individual's microbiome gaps — is the next frontier beyond the universal 30-plants-per-week heuristic.",
+      "With IBS affecting 11% globally, emerging machine-learning subtyping clusters patients into dietary-, bile-acid-, and neuromodulation-responsive phenotypes. The precision-medicine trajectory is clear: low-FODMAP (NNT≈4) and hypnotherapy (NNT≈5) stay first-line, but algorithmic subtyping promises to route each patient to their optimal therapy from the outset.",
+      "Building on the NEJM 2013 cohort linking TMAO >6 µmol/L to triple MACE risk, generative metabolic models now simulate how individual microbiomes convert dietary precursors to TMAO — pointing toward personalised, precision dietary prescriptions that predict and pre-empt cardiovascular risk rather than treating it retrospectively.",
+      "Longitudinal birth-cohort modelling identifies the 0-3 year window as decisive, with C-section, formula, and early antibiotics each adding 20-40% adult risk. The emerging science of AI-guided early-life microbiome seeding — predicting dysbiotic trajectories 12-18 months before clinical signs — represents one of the most promising precision-prevention frontiers.",
+      "Beyond invasive lactulose:mannitol testing, emerging computational and spectroscopic approaches estimate intestinal permeability non-invasively, with serum LPS >0.4 EU/mL as the validated anchor. Generative models linking permeability signatures to atherosclerosis, T2D, and NAFLD are moving barrier health toward predictive, population-scale screening.",
+      "Population-scale data confirms acute stress cuts Lactobacillus and Bifidobacterium 40-60% within 72h; the research frontier is closed-loop digital therapeutics that forecast stress-induced dysbiosis from wearable signals and deliver pre-emptive prebiotic protocols — a generative, personalised model of gut-stress management now entering early trials.",
+      "Of 300+ strains, only ~20 hold Level 1 evidence, with L. acidophilus NCFM + B. lactis Bi-07 strongest for IBS-D (NNT≈3.5). The precision frontier is generative strain-matching: algorithms that pair an individual's baseline composition and host genetics to optimal strains have lifted response rates from ~31% to ~68% in early studies.",
+    ],
+  },
 ];
 
 export interface LLMDoctor {
@@ -292,6 +332,8 @@ const LLM_DOCTOR_META: Record<string, { name: string; title: string }> = {
   kimi:      { name: "Dr. Kimi",   title: "Knowledge Navigation Expert" },
   sensenova: { name: "Dr. Nova",   title: "Analytical Data Pathologist" },
   gemini:    { name: "Dr. Gemini", title: "Synthesis & Discovery Specialist" },
+  minimax:   { name: "Dr. Minimax", title: "Long-Context Reasoning Virtuoso" },
+  seed:      { name: "Dr. Seed",    title: "Generative Research Strategist" },
 };
 
 const SCORER_VOICE: Record<string, string[]> = {
@@ -300,14 +342,18 @@ const SCORER_VOICE: Record<string, string[]> = {
   kimi:      ["Excellent data coverage and population-level grounding.","Comprehensive retrieval — the synthesis could be tighter for clinical use.","Strong evidence base. The global epidemiology angle added real value.","Well-researched. The mechanistic detail was appreciated here.","Good breadth. Gut-brain axis depth could be substantially enhanced.","Impressive citation density. The systematic review framing was a plus.","Strong factual grounding. The comparative efficacy data was well-integrated.","Excellent knowledge retrieval. Clinical prioritisation could be clearer.","Good epidemiological framing. The pathophysiology section was robust.","Thorough data synthesis. The probiotic strain specificity was appreciated."],
   sensenova: ["Precise and analytical — the quantitative framing was appropriate.","Good clinical grounding. Statistical nuance was well-handled throughout.","Methodical and structured. The differential reasoning was sound.","Data-driven and rigorous. Clinical applicability could be highlighted more.","Structured response. The sensitivity framing deserves further development.","Strong analytical rigour. The dose-response framing was particularly apt.","Precise and data-forward. The biomarker discussion was well-calibrated.","Good quantitative depth. The NNT framing added clinical relevance.","Systematic and clear. The risk stratification logic was well-presented.","Analytical and thorough. The correlation vs causation framing was precise."],
   gemini:    ["Strong synthesis across multiple knowledge domains.","Well-integrated — the cross-disciplinary connections added real value.","Impressive breadth. The discovery-layer insights were genuinely useful.","Good multimodal reasoning. Systems-level view was appreciated.","Solid multi-source synthesis. Patient actionability could be stronger.","Excellent knowledge integration. The research horizon section was insightful.","Strong interdisciplinary framing. The lifestyle-microbiome link was compelling.","Good synthesis quality. The emerging therapeutics section stood out.","Well-integrated evidence. The nutrigenomics framing was forward-thinking.","Broad and well-synthesised. The personalised medicine angle was valuable."],
+  minimax:   ["Strong cross-cohort synthesis — the trade-off framing was genuinely sharp.","Excellent optimisation logic. The cost-effectiveness angle added real rigour.","Impressive integration of conflicting trials. The dominant-strategy framing was clear.","Well-reasoned trade-offs. The marginal-benefit framing was particularly apt.","Strong evidence weighting. The decision logic under uncertainty was sound.","Rigorous cost-benefit reasoning. The clinical sequencing could be tightened.","Excellent long-context synthesis. The effect-size grounding was well-placed.","Sharp optimisation framing. The biomarker prioritisation was well-justified.","Strong reconciliation of evidence. The ROI framing was compelling.","Methodical and quantitative. The allocation reasoning was hard to fault."],
+  seed:      ["Forward-looking and well-grounded — the research horizon was compelling.","Strong generative framing. The personalisation trajectory was insightful.","Excellent emerging-science synthesis. The precision angle stood out.","Good predictive framing. The longitudinal-resilience point was valuable.","Strong subtyping logic. The precision-medicine trajectory was well-mapped.","Impressive computational framing. The pre-emptive angle was genuinely novel.","Forward-thinking and rigorous. The early-life prevention framing was strong.","Good emerging-method coverage. The population-scale framing added value.","Strong generative perspective. The closed-loop therapeutic framing was apt.","Excellent precision framing. The strain-matching evidence was well-cited."],
 };
 
 const LLM_PEER_BASE: Record<string, Record<string, number>> = {
-  openai:    { anthropic: 8.4, kimi: 7.7, sensenova: 7.4, gemini: 8.1 },
-  anthropic: { openai: 8.2, kimi: 7.9, sensenova: 7.3, gemini: 8.0 },
-  kimi:      { openai: 7.8, anthropic: 8.3, sensenova: 8.1, gemini: 7.7 },
-  sensenova: { openai: 7.9, anthropic: 8.0, kimi: 8.2, gemini: 7.6 },
-  gemini:    { openai: 8.3, anthropic: 8.4, kimi: 7.8, sensenova: 7.5 },
+  openai:    { anthropic: 8.4, kimi: 7.7, sensenova: 7.4, gemini: 8.1, minimax: 8.0, seed: 7.8 },
+  anthropic: { openai: 8.2, kimi: 7.9, sensenova: 7.3, gemini: 8.0, minimax: 8.1, seed: 7.9 },
+  kimi:      { openai: 7.8, anthropic: 8.3, sensenova: 8.1, gemini: 7.7, minimax: 7.9, seed: 7.8 },
+  sensenova: { openai: 7.9, anthropic: 8.0, kimi: 8.2, gemini: 7.6, minimax: 8.1, seed: 8.0 },
+  gemini:    { openai: 8.3, anthropic: 8.4, kimi: 7.8, sensenova: 7.5, minimax: 7.9, seed: 7.8 },
+  minimax:   { openai: 8.1, anthropic: 8.2, kimi: 7.8, sensenova: 8.0, gemini: 7.9, seed: 8.0 },
+  seed:      { openai: 8.0, anthropic: 8.1, kimi: 7.7, sensenova: 7.9, gemini: 8.0, minimax: 8.1 },
 };
 
 export function getLLMDoctors(): LLMDoctor[] {
@@ -330,7 +376,7 @@ export function getLLMPeerScore(scorerId: string, subjectId: string, qIdx: numbe
 }
 
 const LLM_BASE_SCORES: Record<string, number> = {
-  openai: 8.3, anthropic: 8.6, kimi: 7.9, sensenova: 7.7, gemini: 8.1,
+  openai: 8.3, anthropic: 8.6, kimi: 7.9, sensenova: 7.7, gemini: 8.1, minimax: 8.2, seed: 8.0,
 };
 
 export function getLLMCommentaries(questionIdx: number): {

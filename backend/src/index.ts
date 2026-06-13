@@ -11,6 +11,9 @@ import activityRoutes from "./routes/activities";
 import rankingRoutes from "./routes/rankings";
 import specialtyRoutes from "./routes/specialties";
 import notificationRoutes from "./routes/notifications";
+import gutExplorerRoutes from "./routes/gutExplorer";
+import knowledgeSearchRoutes from "./routes/knowledgeSearch";
+import gutPanelRoutes from "./routes/gutPanel";
 import { SpecialtyField } from "./entities/SpecialtyField";
 import { ContentItem } from "./entities/ContentItem";
 import { User } from "./entities/User";
@@ -26,7 +29,7 @@ declare module "fastify" {
   }
 }
 
-const app = Fastify({ logger: true });
+const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "mediq-dev-secret-2024";
 
@@ -53,6 +56,9 @@ async function bootstrap() {
   await app.register(rankingRoutes, { prefix: "/api/rankings" });
   await app.register(specialtyRoutes, { prefix: "/api/specialties" });
   await app.register(notificationRoutes, { prefix: "/api/notifications" });
+  await app.register(gutExplorerRoutes, { prefix: "/api/gut-explorer" });
+  await app.register(knowledgeSearchRoutes, { prefix: "/api/knowledge" });
+  await app.register(gutPanelRoutes, { prefix: "/api/gut-panel" });
 
   app.get("/health", async () => ({ status: "ok" }));
 

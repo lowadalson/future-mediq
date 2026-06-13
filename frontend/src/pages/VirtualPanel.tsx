@@ -11,8 +11,10 @@ import {
   Lock, Groups, VerifiedUser,
   SmartToy, RecordVoiceOver, QuestionAnswer, Refresh,
   EmojiEvents, Campaign, Mic, VolumeUp, VolumeOff,
+  Close, Gavel,
 } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
+import api from "../api/client";
 import {
   GUT_QUESTIONS, getAllQuestions, getLLMDoctors, getLLMPeerScore,
   type LLMDoctor,
@@ -36,6 +38,14 @@ function gradientFor(specialty: string) {
   }
   return "linear-gradient(135deg, #1565C0, #0D47A1)";
 }
+
+// Doctors whose answers are generated live via a backend LLM endpoint.
+const LIVE_DOCTORS: Record<string, { endpoint: string; label: string; apiName: string }> = {
+  kimi:      { endpoint: "/gut-panel/kimi",      label: "Kimi",    apiName: "Moonshot Kimi API" },
+  sensenova: { endpoint: "/gut-panel/sensenova", label: "Nova",    apiName: "SenseTime SenseNova API" },
+  minimax:   { endpoint: "/gut-panel/minimax",   label: "Minimax", apiName: "TokenRouter MiniMax API" },
+  seed:      { endpoint: "/gut-panel/seed",      label: "Seed",    apiName: "TokenRouter Seed API" },
+};
 
 // Typewriter hook
 function useTypewriter(text: string, speed = 18) {
@@ -119,6 +129,25 @@ function drExtras(doctorId: string, size: number): React.ReactNode {
           <Box sx={{ position: "absolute", top: "41%", right: "6%", width: size*0.08, height: size*0.08, borderRadius: "50%", bgcolor: "#34A85388" }} />
         </>
       );
+    case "minimax":
+      return (
+        <>
+          {/* Sleek swept-back hair */}
+          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: size*0.16, bgcolor: "#3A1F12", borderRadius: "0 0 30% 30%" }} />
+          {/* Half-moon visor accent */}
+          <Box sx={{ position: "absolute", top: "13%", left: "50%", transform: "translateX(-50%)", width: size*0.5, height: size*0.06, borderRadius: 10, bgcolor: "rgba(255,255,255,0.35)" }} />
+        </>
+      );
+    case "seed":
+      return (
+        <>
+          {/* Leafy sprout tuft */}
+          <Box sx={{ position: "absolute", top: -size*0.05, left: "44%", width: size*0.12, height: size*0.16, bgcolor: "#0F766E", borderRadius: "50% 50% 50% 0", transform: "rotate(-20deg)", transformOrigin: "bottom center" }} />
+          <Box sx={{ position: "absolute", top: -size*0.04, left: "50%", width: size*0.12, height: size*0.15, bgcolor: "#0F766E", borderRadius: "50% 50% 0 50%", transform: "rotate(20deg)", transformOrigin: "bottom center" }} />
+          {/* Forehead band */}
+          <Box sx={{ position: "absolute", top: size*0.1, left: 0, right: 0, height: size*0.07, bgcolor: "rgba(255,255,255,0.25)" }} />
+        </>
+      );
     default:
       return null;
   }
@@ -173,6 +202,37 @@ function TalkingFace({ color, logo, speaking, size = 88, doctorId = "" }: { colo
   );
 }
 
+// Clickable red "cross" badge a real specialist places on a Dr Virtual AI input to signal disagreement.
+function DisagreeToggle({ active, onClick, size = 26 }: { active: boolean; onClick: () => void; size?: number }) {
+  return (
+    <Tooltip title={active ? "Specialist flagged disagreement — click to remove" : "Flag specialist disagreement"}>
+      <Box
+        onClick={onClick}
+        sx={{
+          cursor: "pointer", width: size, height: size, borderRadius: "50%", flexShrink: 0,
+          display: "flex", alignItems: "center", justifyContent: "center", transition: "all 0.15s",
+          bgcolor: active ? "#E53935" : "rgba(0,0,0,0.05)",
+          color: active ? "white" : "rgba(0,0,0,0.4)",
+          border: active ? "2px solid #B71C1C" : "1px dashed rgba(0,0,0,0.35)",
+          "&:hover": { bgcolor: active ? "#C62828" : "rgba(229,57,53,0.15)", color: active ? "white" : "#E53935" },
+        }}
+      >
+        <Close sx={{ fontSize: size * 0.62 }} />
+      </Box>
+    </Tooltip>
+  );
+}
+
+// Semi-transparent red overlay drawn over a flagged input card.
+function DisagreeOverlay() {
+  return (
+    <Box sx={{ position: "absolute", inset: 0, borderRadius: "inherit", pointerEvents: "none", overflow: "hidden", zIndex: 2 }}>
+      <Box sx={{ position: "absolute", inset: 0, bgcolor: "rgba(229,57,53,0.10)" }} />
+      <Box sx={{ position: "absolute", top: "50%", left: "-10%", width: "120%", height: 2, bgcolor: "rgba(229,57,53,0.55)", transform: "rotate(-12deg)" }} />
+    </Box>
+  );
+}
+
 export default function VirtualPanel() {
   const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>("setup");
@@ -187,13 +247,58 @@ export default function VirtualPanel() {
   const [scoresRevealed, setScoresRevealed] = useState(false);
   const [speakerFinalScores, setSpeakerFinalScores] = useState<Record<string, number>>({});
   const [isMuted, setIsMuted] = useState(false);
+  // Live doctors' answers are generated live via their backend LLM endpoints, keyed by doctor id
+  const [liveAnswers, setLiveAnswers] = useState<Record<string, string>>({});
+  const [liveLoadingMap, setLiveLoadingMap] = useState<Record<string, boolean>>({});
+  const [liveErrors, setLiveErrors] = useState<Record<string, string>>({});
+  // Real specialist's disagreement flags ("cross" badges) placed on Dr Virtual AI inputs.
+  // Keyed so they persist across rounds and into the summary: see disagreeKey().
+  const [disagreements, setDisagreements] = useState<Record<string, boolean>>({});
+
+  // Only verified specialists (and admins) may flag disagreement with the AI panel.
+  const isSpecialist = user?.role === "specialist" || user?.role === "admin";
 
   // Derived state — must be before useEffects that reference them
   const panelists = getLLMDoctors();
   const currentSpeaker: LLMDoctor | null = panelists[speakerIdx] ?? null;
   const otherPanelists = panelists.filter((_, i) => i !== speakerIdx);
   const isLastSpeaker = speakerIdx === panelists.length - 1;
-  const responseText = currentSpeaker ? (currentSpeaker.responses[questionIdx] ?? currentSpeaker.responses[0] ?? "") : "";
+  const liveCfg = currentSpeaker ? LIVE_DOCTORS[currentSpeaker.id] : undefined;
+  const isLiveSpeaker = !!liveCfg;
+  // Active live speaker details, used to drive the live UI generically
+  const liveAnswer = currentSpeaker ? liveAnswers[currentSpeaker.id] ?? null : null;
+  const liveError = currentSpeaker ? liveErrors[currentSpeaker.id] ?? null : null;
+  // While a live answer is in flight (and hasn't fallen back), pause the panel flow
+  const livePending = isLiveSpeaker && !!currentSpeaker && (liveLoadingMap[currentSpeaker.id] ?? false) && !liveAnswer && !liveError;
+  const liveLabel = liveCfg?.label ?? "";
+  const liveApiName = liveCfg?.apiName ?? "";
+  function hardcodedResponse(doc: LLMDoctor): string {
+    return doc.responses[questionIdx] ?? doc.responses[0] ?? "";
+  }
+  const responseText = !currentSpeaker
+    ? ""
+    : isLiveSpeaker
+      ? (liveAnswer ?? (liveError ? hardcodedResponse(currentSpeaker) : ""))
+      : hardcodedResponse(currentSpeaker);
+
+  // Fetch every live doctor's answer once per question (ready before they speak)
+  useEffect(() => {
+    if (phase !== "panel" || !question) return;
+    let cancelled = false;
+    setLiveAnswers({});
+    setLiveErrors({});
+    setLiveLoadingMap(Object.fromEntries(Object.keys(LIVE_DOCTORS).map(id => [id, true])));
+    Object.entries(LIVE_DOCTORS).forEach(([id, cfg]) => {
+      api.post<{ answer: string }>(cfg.endpoint, { question })
+        .then(res => { if (!cancelled) setLiveAnswers(prev => ({ ...prev, [id]: res.data.answer })); })
+        .catch(err => {
+          if (!cancelled) setLiveErrors(prev => ({ ...prev, [id]: err?.response?.data?.error ?? `${cfg.label} is unavailable` }));
+        })
+        .finally(() => { if (!cancelled) setLiveLoadingMap(prev => ({ ...prev, [id]: false })); });
+    });
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, question]);
 
   function cleanForSpeech(text: string): string {
     return text.replace(/[\u{1F300}-\u{1F9FF}\u{1F000}-\u{1F02F}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, "").replace(/\s+/g, " ").trim();
@@ -258,10 +363,13 @@ export default function VirtualPanel() {
   const { displayed, done } = useTypewriter(
     phase === "panel" ? responseText : "", 14
   );
+  // A live speaker's empty placeholder finishes the typewriter instantly while loading —
+  // don't treat that as a real "answer locked in".
+  const answerReady = done && !livePending;
 
   useEffect(() => {
-    if (done) setShowReactions(true);
-  }, [done]);
+    if (answerReady) setShowReactions(true);
+  }, [answerReady]);
 
   function computeRoundScore(speaker: LLMDoctor, others: LLMDoctor[], qIdx: number): number {
     const peerScores = others.map(r => getLLMPeerScore(r.id, speaker.id, qIdx).score);
@@ -304,7 +412,23 @@ export default function VirtualPanel() {
     setPhase("setup"); setSpeakerIdx(0);
     setQuestion(""); setCustomQ(""); setShowReactions(false);
     setScoresRevealed(false); setSpeakerFinalScores({});
+    setDisagreements({});
   }
+
+  // Stable key for a flagged Dr Virtual AI input.
+  //  - "peer"   : a judge's peer score of the current speaker  → subjectId = speaker, byId = judge
+  //  - "final"  : a doctor's final standing in the summary     → subjectId = doctor,  byId = "final"
+  function disagreeKey(kind: "peer" | "final", subjectId: string, byId: string) {
+    return `${kind}:${subjectId}:${byId}`;
+  }
+  function toggleDisagree(key: string) {
+    setDisagreements(prev => {
+      const next = { ...prev };
+      if (next[key]) delete next[key]; else next[key] = true;
+      return next;
+    });
+  }
+  const disagreeCount = Object.keys(disagreements).length;
 
   /* ── SETUP PHASE ─────────────────────────────── */
   if (phase === "setup") return (
@@ -327,7 +451,7 @@ export default function VirtualPanel() {
         </Typography>
       </Box>
 
-      <Typography variant="h6" fontWeight={700} mb={2}>Tonight's Contestants — 5 AI Doctors</Typography>
+      <Typography variant="h6" fontWeight={700} mb={2}>Tonight's Contestants — {panelists.length} AI Doctors</Typography>
       <Grid container spacing={2} mb={4}>
         {panelists.map(doc => (
           <Grid item xs={12} sm={6} md={4} key={doc.id}>
@@ -348,7 +472,7 @@ export default function VirtualPanel() {
       </Grid>
 
       <Alert severity="info" sx={{ mb: 3 }}>
-        <strong>5 AI Doctors competing tonight.</strong> All responses are AI-generated educational simulations and do not constitute professional medical advice.
+        <strong>{panelists.length} AI Doctors competing tonight.</strong> All responses are AI-generated educational simulations and do not constitute professional medical advice.
       </Alert>
 
       <Button
@@ -535,16 +659,16 @@ export default function VirtualPanel() {
               {/* Gradient header with virtual avatar */}
               <Box sx={{ background: `linear-gradient(135deg, ${grad}CC, ${grad})`, px: 3, pt: 3, pb: 4 }}>
                 <Stack direction="row" spacing={2.5} alignItems="center">
-                  <TalkingFace color={currentSpeaker.color} logo={currentSpeaker.logo} speaking={!done} size={90} doctorId={currentSpeaker.id} />
+                  <TalkingFace color={currentSpeaker.color} logo={currentSpeaker.logo} speaking={!answerReady} size={90} doctorId={currentSpeaker.id} />
                   <Box flex={1}>
                     <Stack direction="row" spacing={0.75} alignItems="center" mb={0.25}>
                       <Typography variant="h6" fontWeight={800} color="white">{currentSpeaker.name}</Typography>
                     </Stack>
                     <Typography color="rgba(255,255,255,0.8)" fontSize={13} mb={0.75}>{currentSpeaker.title} · {currentSpeaker.model}</Typography>
                     <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, bgcolor: "rgba(0,0,0,0.35)", borderRadius: 10, px: 1.25, py: 0.4, border: "1px solid rgba(144,202,249,0.4)" }}>
-                      <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: done ? "rgba(255,255,255,0.4)" : "#69F0AE", animation: done ? "none" : "dot 1s step-end infinite", "@keyframes dot": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.2 } } }} />
+                      <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: answerReady ? "rgba(255,255,255,0.4)" : "#69F0AE", animation: answerReady ? "none" : "dot 1s step-end infinite", "@keyframes dot": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.2 } } }} />
                       <Typography variant="caption" color="#90CAF9" fontWeight={700} fontSize={10} letterSpacing={0.5}>
-                        {done ? "VIRTUAL AI · ANSWER LOCKED IN" : "VIRTUAL AI · SPEAKING…"}
+                        {answerReady ? (liveAnswer ? `${liveLabel.toUpperCase()} · LIVE ANSWER LOCKED IN` : "VIRTUAL AI · ANSWER LOCKED IN") : livePending ? `${liveLabel.toUpperCase()} · CONNECTING LIVE…` : "VIRTUAL AI · SPEAKING…"}
                       </Typography>
                     </Box>
                   </Box>
@@ -555,12 +679,25 @@ export default function VirtualPanel() {
               <CardContent sx={{ p: 3 }}>
                 <Stack direction="row" spacing={1} alignItems="center" mb={2}>
                   <RecordVoiceOver sx={{ color: "primary.main", fontSize: 20 }} />
-                  <Typography variant="body2" fontWeight={700} color="primary.main">{done ? "Answer locked in" : "Speaking…"}</Typography>
-                  {!done && <CircularProgress size={14} thickness={5} />}
+                  <Typography variant="body2" fontWeight={700} color="primary.main">{answerReady ? "Answer locked in" : livePending ? `Connecting to Dr. ${liveLabel} (live)…` : "Speaking…"}</Typography>
+                  {!answerReady && <CircularProgress size={14} thickness={5} />}
                 </Stack>
+                {isLiveSpeaker && liveError && (
+                  <Alert severity="warning" sx={{ mb: 2, py: 0.25 }}>
+                    Live {liveLabel} unavailable ({liveError}) — showing a cached response.
+                  </Alert>
+                )}
                 <Typography variant="body1" lineHeight={1.8} color="text.primary" sx={{ minHeight: 120 }}>
-                  {displayed}
-                  {!done && <Box component="span" sx={{ display: "inline-block", width: 2, height: "1em", bgcolor: "primary.main", ml: 0.5, animation: "blink 0.8s step-end infinite", "@keyframes blink": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0 } } }} />}
+                  {livePending ? (
+                    <Box component="span" sx={{ color: "text.secondary", fontStyle: "italic" }}>
+                      Connecting to Dr. {liveLabel} via the live {liveApiName}…
+                    </Box>
+                  ) : (
+                    <>
+                      {displayed}
+                      {!answerReady && <Box component="span" sx={{ display: "inline-block", width: 2, height: "1em", bgcolor: "primary.main", ml: 0.5, animation: "blink 0.8s step-end infinite", "@keyframes blink": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0 } } }} />}
+                    </>
+                  )}
                 </Typography>
               </CardContent>
             </Card>
@@ -610,7 +747,7 @@ export default function VirtualPanel() {
         </Grid>
 
         {/* ── Judge Panel (after speaking) ── */}
-        {done && (
+        {answerReady && (
           <Fade in>
             <Box mt={4}>
               <Divider sx={{ mb: 3 }} />
@@ -619,35 +756,86 @@ export default function VirtualPanel() {
               <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={2} display="block" mb={1.5}>
                 ⚖️ JUDGE PANEL — PEER SCORES
               </Typography>
-              <Grid container spacing={1.5} mb={3}>
-                {otherPanelists.map((judge, i) => {
-                  const r = getLLMPeerScore(judge.id, currentSpeaker.id, questionIdx);
-                  return (
-                    <Grid item xs={6} sm={4} key={judge.id}>
-                      <Fade in={showReactions} style={{ transitionDelay: `${i * 70}ms` }}>
-                        <Card variant="outlined" sx={{ borderLeft: `4px solid ${judge.color}`, bgcolor: judge.bgColor, borderRadius: 2 }}>
-                          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                              <Stack direction="row" spacing={0.75} alignItems="center">
-                                <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: judge.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{judge.logo}</Box>
-                                <Box>
-                                  <Typography fontWeight={800} fontSize={12}>{judge.name}</Typography>
-                                  <Typography variant="caption" color="text.disabled" fontSize={9}>{judge.title}</Typography>
-                                </Box>
-                              </Stack>
-                              {showReactions
-                                ? <Typography fontWeight={900} fontSize={20} color={judge.color}>{r.score}</Typography>
-                                : <Box sx={{ width: 36, height: 22, bgcolor: "#F0F0F0", borderRadius: 1 }} />}
+              <Grid container spacing={3} mb={3}>
+                <Grid item xs={12} md={isSpecialist ? 8 : 12}>
+                  <Grid container spacing={1.5}>
+                    {otherPanelists.map((judge, i) => {
+                      const r = getLLMPeerScore(judge.id, currentSpeaker.id, questionIdx);
+                      const dKey = disagreeKey("peer", currentSpeaker.id, judge.id);
+                      const flagged = !!disagreements[dKey];
+                      return (
+                        <Grid item xs={6} sm={4} key={judge.id}>
+                          <Fade in={showReactions} style={{ transitionDelay: `${i * 70}ms` }}>
+                            <Card variant="outlined" sx={{ position: "relative", borderLeft: `4px solid ${judge.color}`, bgcolor: judge.bgColor, borderRadius: 2, ...(flagged && { borderColor: "#E53935" }) }}>
+                              {flagged && <DisagreeOverlay />}
+                              <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 }, position: "relative", zIndex: 1 }}>
+                                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                                  <Stack direction="row" spacing={0.75} alignItems="center">
+                                    <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: judge.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{judge.logo}</Box>
+                                    <Box>
+                                      <Typography fontWeight={800} fontSize={12}>{judge.name}</Typography>
+                                      <Typography variant="caption" color="text.disabled" fontSize={9}>{judge.title}</Typography>
+                                    </Box>
+                                  </Stack>
+                                  <Stack direction="row" spacing={0.75} alignItems="center">
+                                    {showReactions
+                                      ? <Typography fontWeight={900} fontSize={20} color={flagged ? "#E53935" : judge.color} sx={{ textDecoration: flagged ? "line-through" : "none" }}>{r.score}</Typography>
+                                      : <Box sx={{ width: 36, height: 22, bgcolor: "#F0F0F0", borderRadius: 1 }} />}
+                                    {isSpecialist && showReactions && (
+                                      <DisagreeToggle active={flagged} onClick={() => toggleDisagree(dKey)} size={24} />
+                                    )}
+                                  </Stack>
+                                </Stack>
+                                {showReactions
+                                  ? <Typography variant="caption" color="text.secondary" fontSize={10} lineHeight={1.5} display="block">{r.comment}</Typography>
+                                  : <Box sx={{ width: "100%", height: 24, bgcolor: "#F8F8F8", borderRadius: 1 }} />}
+                              </CardContent>
+                            </Card>
+                          </Fade>
+                        </Grid>
+                      );
+                    })}
+                  </Grid>
+                </Grid>
+
+                {/* ── Specialist Review side panel (real doctor flags AI inputs) ── */}
+                {isSpecialist && (
+                  <Grid item xs={12} md={4}>
+                    <Fade in={showReactions}>
+                      <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, borderColor: "#E53935", borderTop: "4px solid #E53935", height: "100%", position: "sticky", top: 16 }}>
+                        <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                          <Gavel sx={{ color: "#E53935", fontSize: 20 }} />
+                          <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={1.5}>SPECIALIST REVIEW</Typography>
+                        </Stack>
+                        <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                          Tap the <Close sx={{ fontSize: 12, verticalAlign: "middle", color: "#E53935" }} /> on any AI judge's score for <strong>{currentSpeaker.name}</strong> to flag your disagreement.
+                        </Typography>
+                        {(() => {
+                          const roundFlags = otherPanelists.filter(j => disagreements[disagreeKey("peer", currentSpeaker.id, j.id)]);
+                          if (roundFlags.length === 0) {
+                            return <Typography variant="caption" color="text.disabled" fontStyle="italic">No disagreements flagged this round.</Typography>;
+                          }
+                          return (
+                            <Stack spacing={1}>
+                              {roundFlags.map(j => (
+                                <Stack key={j.id} direction="row" spacing={1} alignItems="center" sx={{ bgcolor: "#FFEBEE", borderRadius: 1.5, px: 1, py: 0.5 }}>
+                                  <Close sx={{ fontSize: 14, color: "#E53935" }} />
+                                  <Typography fontSize={11} fontWeight={700} flex={1} noWrap>{j.name}</Typography>
+                                  <Button size="small" onClick={() => toggleDisagree(disagreeKey("peer", currentSpeaker.id, j.id))} sx={{ minWidth: 0, p: 0.25, fontSize: 10, color: "text.secondary" }}>undo</Button>
+                                </Stack>
+                              ))}
                             </Stack>
-                            {showReactions
-                              ? <Typography variant="caption" color="text.secondary" fontSize={10} lineHeight={1.5} display="block">{r.comment}</Typography>
-                              : <Box sx={{ width: "100%", height: 24, bgcolor: "#F8F8F8", borderRadius: 1 }} />}
-                          </CardContent>
-                        </Card>
-                      </Fade>
-                    </Grid>
-                  );
-                })}
+                          );
+                        })()}
+                        {disagreeCount > 0 && (
+                          <Typography variant="caption" color="text.disabled" display="block" mt={1.5}>
+                            {disagreeCount} total flag{disagreeCount === 1 ? "" : "s"} this session.
+                          </Typography>
+                        )}
+                      </Paper>
+                    </Fade>
+                  </Grid>
+                )}
               </Grid>
 
               {/* ── Score Reveal ── */}
@@ -717,44 +905,91 @@ export default function VirtualPanel() {
 
         {/* Podium */}
         <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={2} display="block" mb={2}>🏅 FINAL STANDINGS</Typography>
-        <Stack spacing={1.5} mb={4}>
-          {sorted.map((s, rank) => {
-            const grad = s.color;
-            const score = speakerFinalScores[s.id];
-            const isWinner = rank === 0;
-            return (
-              <Card key={s.id} sx={{ borderRadius: 2, overflow: "hidden", border: isWinner ? "2px solid #FFD700" : undefined, boxShadow: isWinner ? "0 0 20px rgba(255,215,0,0.3)" : undefined }}>
-                <Stack direction="row">
-                  <Box sx={{ width: 6, bgcolor: grad, flexShrink: 0 }} />
-                  <CardContent sx={{ p: 2, flex: 1 }}>
-                    <Stack direction="row" spacing={2} alignItems="center">
-                      <Typography fontSize={28}>{podiumEmoji[rank] ?? `${rank + 1}`}</Typography>
-                      <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{s.logo}</Box>
-                      <Box flex={1}>
-                        <Typography fontWeight={800} fontSize={15}>{s.name}</Typography>
-                        <Typography variant="caption" color="text.secondary">{s.title}</Typography>
-                      </Box>
-                      <Box textAlign="right">
-                        <Typography fontWeight={900} fontSize={28} color={isWinner ? "#F57F17" : "text.primary"}>{score ?? "–"}</Typography>
-                        <Typography variant="caption" color="text.disabled">/10</Typography>
-                      </Box>
+        <Grid container spacing={3} mb={4}>
+          <Grid item xs={12} md={isSpecialist ? 8 : 12}>
+            <Stack spacing={1.5}>
+              {sorted.map((s, rank) => {
+                const grad = s.color;
+                const score = speakerFinalScores[s.id];
+                const isWinner = rank === 0;
+                const dKey = disagreeKey("final", s.id, "final");
+                const flagged = !!disagreements[dKey];
+                return (
+                  <Card key={s.id} sx={{ position: "relative", borderRadius: 2, overflow: "hidden", border: flagged ? "2px solid #E53935" : isWinner ? "2px solid #FFD700" : undefined, boxShadow: isWinner && !flagged ? "0 0 20px rgba(255,215,0,0.3)" : undefined }}>
+                    {flagged && <DisagreeOverlay />}
+                    <Stack direction="row">
+                      <Box sx={{ width: 6, bgcolor: grad, flexShrink: 0 }} />
+                      <CardContent sx={{ p: 2, flex: 1, position: "relative", zIndex: 1 }}>
+                        <Stack direction="row" spacing={2} alignItems="center">
+                          <Typography fontSize={28}>{podiumEmoji[rank] ?? `${rank + 1}`}</Typography>
+                          <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{s.logo}</Box>
+                          <Box flex={1}>
+                            <Typography fontWeight={800} fontSize={15}>{s.name}</Typography>
+                            <Typography variant="caption" color="text.secondary">{s.title}</Typography>
+                          </Box>
+                          <Box textAlign="right">
+                            <Typography fontWeight={900} fontSize={28} color={flagged ? "#E53935" : isWinner ? "#F57F17" : "text.primary"} sx={{ textDecoration: flagged ? "line-through" : "none" }}>{score ?? "–"}</Typography>
+                            <Typography variant="caption" color="text.disabled">/10</Typography>
+                          </Box>
+                          {isSpecialist && (
+                            <DisagreeToggle active={flagged} onClick={() => toggleDisagree(dKey)} size={30} />
+                          )}
+                        </Stack>
+                        <Typography variant="body2" color="text.secondary" lineHeight={1.65} mt={1.5} fontSize={13}>
+                          {(liveAnswers[s.id] ?? s.responses[questionIdx] ?? s.responses[0] ?? "").split(" ").slice(0, 35).join(" ")}…
+                        </Typography>
+                      </CardContent>
                     </Stack>
-                    <Typography variant="body2" color="text.secondary" lineHeight={1.65} mt={1.5} fontSize={13}>
-                      {(s.responses[questionIdx] ?? s.responses[0] ?? "").split(" ").slice(0, 35).join(" ")}…
-                    </Typography>
-                  </CardContent>
+                  </Card>
+                );
+              })}
+            </Stack>
+          </Grid>
+
+          {/* ── Specialist Review side panel (real doctor flags final standings) ── */}
+          {isSpecialist && (
+            <Grid item xs={12} md={4}>
+              <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, borderColor: "#E53935", borderTop: "4px solid #E53935", position: "sticky", top: 16 }}>
+                <Stack direction="row" spacing={1} alignItems="center" mb={0.5}>
+                  <Gavel sx={{ color: "#E53935", fontSize: 20 }} />
+                  <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={1.5}>SPECIALIST REVIEW</Typography>
                 </Stack>
-              </Card>
-            );
-          })}
-        </Stack>
+                <Typography variant="caption" color="text.secondary" display="block" mb={1.5}>
+                  Tap the <Close sx={{ fontSize: 12, verticalAlign: "middle", color: "#E53935" }} /> on any AI doctor's final standing to flag your disagreement.
+                </Typography>
+                {(() => {
+                  const finalFlags = sorted.filter(s => disagreements[disagreeKey("final", s.id, "final")]);
+                  if (finalFlags.length === 0) {
+                    return <Typography variant="caption" color="text.disabled" fontStyle="italic">No final standings flagged.</Typography>;
+                  }
+                  return (
+                    <Stack spacing={1}>
+                      {finalFlags.map(s => (
+                        <Stack key={s.id} direction="row" spacing={1} alignItems="center" sx={{ bgcolor: "#FFEBEE", borderRadius: 1.5, px: 1, py: 0.5 }}>
+                          <Close sx={{ fontSize: 14, color: "#E53935" }} />
+                          <Typography fontSize={11} fontWeight={700} flex={1} noWrap>{s.name}</Typography>
+                          <Button size="small" onClick={() => toggleDisagree(disagreeKey("final", s.id, "final"))} sx={{ minWidth: 0, p: 0.25, fontSize: 10, color: "text.secondary" }}>undo</Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  );
+                })()}
+                {disagreeCount > 0 && (
+                  <Typography variant="caption" color="text.disabled" display="block" mt={1.5}>
+                    {disagreeCount} total flag{disagreeCount === 1 ? "" : "s"} this session.
+                  </Typography>
+                )}
+              </Paper>
+            </Grid>
+          )}
+        </Grid>
 
         <Alert severity="warning" sx={{ mb: 3 }}>
           <strong>Medical Disclaimer:</strong> All responses are AI-generated educational simulations. Not professional medical advice.
         </Alert>
 
         <Stack direction="row" spacing={2}>
-          <Button variant="outlined" color="success" startIcon={<Refresh />} onClick={() => { setSpeakerIdx(0); setShowReactions(false); setScoresRevealed(false); setSpeakerFinalScores({}); setPhase("question"); }}>
+          <Button variant="outlined" color="success" startIcon={<Refresh />} onClick={() => { setSpeakerIdx(0); setShowReactions(false); setScoresRevealed(false); setSpeakerFinalScores({}); setDisagreements({}); setPhase("question"); }}>
             Play Again
           </Button>
           <Button variant="contained" startIcon={<Groups />} onClick={reset}>

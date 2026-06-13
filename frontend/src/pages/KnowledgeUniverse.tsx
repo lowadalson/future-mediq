@@ -55,8 +55,25 @@ export default function KnowledgeUniverse() {
   const [selectedAge, setSelectedAge] = useState("all");
   const [voting, setVoting] = useState<string | null>(null);
   const [voteMsg, setVoteMsg] = useState<{ id: string; msg: string; ok: boolean } | null>(null);
+  const [fetching, setFetching] = useState(false);
+  const [fetchMsg, setFetchMsg] = useState<{ msg: string; ok: boolean } | null>(null);
 
   const isSpecialist = user?.role === "specialist";
+
+  const handleGutSearch = async () => {
+    setFetching(true);
+    setFetchMsg(null);
+    try {
+      const res = await api.post("/knowledge/gut-search");
+      setFetchMsg({ msg: `Added ${res.data.added} new gut item(s) (${res.data.skipped} already existed).`, ok: true });
+      fetchContent();
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error || "Gut search failed";
+      setFetchMsg({ msg, ok: false });
+    } finally {
+      setFetching(false);
+    }
+  };
 
   const fetchContent = () => {
     const params: Record<string, string> = { status };
@@ -87,12 +104,35 @@ export default function KnowledgeUniverse() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={0.5}>
-        Knowledge Universe
-      </Typography>
-      <Typography color="text.secondary" mb={4}>
-        AI-curated YouTube and video content, reviewed and approved by verified medical specialists
-      </Typography>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "flex-start" }} spacing={1} mb={0.5}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} mb={0.5}>
+            Knowledge Universe
+          </Typography>
+          <Typography color="text.secondary">
+            AI-curated YouTube and video content, reviewed and approved by verified medical specialists
+          </Typography>
+        </Box>
+        {isSpecialist && (
+          <Button
+            variant="contained"
+            startIcon={<AutoAwesome />}
+            onClick={handleGutSearch}
+            disabled={fetching}
+            sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+          >
+            {fetching ? "Searching..." : "Fetch Gut Content"}
+          </Button>
+        )}
+      </Stack>
+
+      {fetchMsg && (
+        <Alert severity={fetchMsg.ok ? "success" : "error"} sx={{ mb: 2 }} onClose={() => setFetchMsg(null)}>
+          {fetchMsg.msg}
+        </Alert>
+      )}
+
+      <Box mb={4} />
 
       <Stack spacing={2} mb={4}>
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} alignItems={{ sm: "center" }}>
