@@ -13,9 +13,9 @@ import {
   EmojiEvents, Campaign, Mic, VolumeUp, VolumeOff,
 } from "@mui/icons-material";
 import { useAuth } from "../contexts/AuthContext";
-import api, { SpecialistProfile } from "../api/client";
 import {
-  GUT_QUESTIONS, getResponse, getReaction, getAllQuestions, getLLMCommentaries,
+  GUT_QUESTIONS, getAllQuestions, getLLMDoctors, getLLMPeerScore,
+  type LLMDoctor,
 } from "./virtualPanelData";
 
 type Phase = "setup" | "question" | "panel" | "summary";
@@ -61,12 +61,122 @@ function useTypewriter(text: string, speed = 18) {
   return { displayed, done };
 }
 
+function drExtras(doctorId: string, size: number): React.ReactNode {
+  switch (doctorId) {
+    case "openai":
+      return (
+        <>
+          {/* Neat dark parted hair */}
+          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: size*0.17, bgcolor: "#1A1A1A", borderRadius: "0 0 20% 20%" }} />
+          <Box sx={{ position: "absolute", top: 0, left: "46%", width: "8%", height: size*0.14, bgcolor: "rgba(255,255,255,0.12)" }} />
+        </>
+      );
+    case "anthropic":
+      return (
+        <>
+          {/* Warm auburn wavy hair */}
+          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: size*0.2, bgcolor: "#8B3A0F", borderRadius: "0 0 40% 40%" }} />
+          {/* Blush */}
+          <Box sx={{ position: "absolute", top: "41%", left: "7%", width: size*0.16, height: size*0.08, borderRadius: "50%", bgcolor: "rgba(255,140,100,0.45)" }} />
+          <Box sx={{ position: "absolute", top: "41%", right: "7%", width: size*0.16, height: size*0.08, borderRadius: "50%", bgcolor: "rgba(255,140,100,0.45)" }} />
+        </>
+      );
+    case "kimi":
+      return (
+        <>
+          {/* Spiky anime hair */}
+          <Box sx={{ position: "absolute", top: 0, left: "15%", width: "70%", height: size*0.14, bgcolor: "#111827" }} />
+          <Box sx={{ position: "absolute", top: -size*0.04, left: "22%", width: size*0.13, height: size*0.18, bgcolor: "#111827", borderRadius: "50% 50% 0 0", transform: "rotate(-18deg)", transformOrigin: "bottom center" }} />
+          <Box sx={{ position: "absolute", top: -size*0.06, left: "40%", width: size*0.13, height: size*0.22, bgcolor: "#111827", borderRadius: "50% 50% 0 0" }} />
+          <Box sx={{ position: "absolute", top: -size*0.03, left: "58%", width: size*0.13, height: size*0.17, bgcolor: "#111827", borderRadius: "50% 50% 0 0", transform: "rotate(18deg)", transformOrigin: "bottom center" }} />
+          {/* Energy lines */}
+          <Box sx={{ position: "absolute", top: "32%", left: "2%", width: size*0.08, height: 2, bgcolor: "rgba(255,255,255,0.5)", transform: "rotate(-30deg)" }} />
+          <Box sx={{ position: "absolute", top: "38%", left: "2%", width: size*0.06, height: 2, bgcolor: "rgba(255,255,255,0.35)", transform: "rotate(-25deg)" }} />
+        </>
+      );
+    case "sensenova":
+      return (
+        <>
+          {/* Formal flat dark hair */}
+          <Box sx={{ position: "absolute", top: 0, left: "8%", right: "8%", height: size*0.15, bgcolor: "#1F2937", borderRadius: "0 0 6px 6px" }} />
+          {/* Glasses — overlays eyes */}
+          <Box sx={{ position: "absolute", top: "23%", left: "8%", right: "8%", height: size*0.18, display: "flex", alignItems: "center", gap: "4%" }}>
+            <Box sx={{ flex: 1, height: "100%", borderRadius: "35%", border: `${Math.max(1,size*0.025)}px solid rgba(255,255,255,0.8)`, bgcolor: "rgba(200,230,255,0.08)" }} />
+            <Box sx={{ width: "7%", height: 2, bgcolor: "rgba(255,255,255,0.65)" }} />
+            <Box sx={{ flex: 1, height: "100%", borderRadius: "35%", border: `${Math.max(1,size*0.025)}px solid rgba(255,255,255,0.8)`, bgcolor: "rgba(200,230,255,0.08)" }} />
+          </Box>
+        </>
+      );
+    case "gemini":
+      return (
+        <>
+          {/* Rainbow forehead band */}
+          <Box sx={{ position: "absolute", top: 0, left: 0, right: 0, height: size*0.13, background: "linear-gradient(90deg,#EA4335,#FBBC04,#34A853,#4285F4)", opacity: 0.8 }} />
+          {/* Sparkle */}
+          <Typography component="span" sx={{ position: "absolute", top: "11%", left: "50%", transform: "translateX(-50%)", fontSize: size*0.17, lineHeight: 1, userSelect: "none" }}>✨</Typography>
+          {/* Colorful dots on cheeks */}
+          <Box sx={{ position: "absolute", top: "41%", left: "6%", width: size*0.08, height: size*0.08, borderRadius: "50%", bgcolor: "#FBBC0488" }} />
+          <Box sx={{ position: "absolute", top: "41%", right: "6%", width: size*0.08, height: size*0.08, borderRadius: "50%", bgcolor: "#34A85388" }} />
+        </>
+      );
+    default:
+      return null;
+  }
+}
+
+function TalkingFace({ color, logo, speaking, size = 88, doctorId = "" }: { color: string; logo: string; speaking: boolean; size?: number; doctorId?: string }) {
+  return (
+    <Box sx={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      {speaking && <>
+        <Box sx={{ position: "absolute", inset: -7, borderRadius: "50%", border: `3px solid ${color}44`, animation: "tfp1 1.5s ease-in-out infinite", "@keyframes tfp1": { "0%,100%": { transform: "scale(1)", opacity: 1 }, "50%": { transform: "scale(1.1)", opacity: 0 } } }} />
+        <Box sx={{ position: "absolute", inset: -3, borderRadius: "50%", border: `2px solid ${color}33`, animation: "tfp2 1.5s ease-in-out infinite 0.35s", "@keyframes tfp2": { "0%,100%": { transform: "scale(1)", opacity: 0.8 }, "50%": { transform: "scale(1.06)", opacity: 0 } } }} />
+      </>}
+      <Box sx={{
+        width: size, height: size, borderRadius: "50%",
+        background: `radial-gradient(circle at 36% 30%, rgba(255,255,255,0.28) 0%, transparent 55%), ${color}`,
+        border: "3px solid rgba(255,255,255,0.55)",
+        position: "relative", overflow: "hidden",
+        boxShadow: speaking ? `0 0 28px ${color}66` : `0 4px 12px ${color}33`,
+        animation: speaking ? "tfhb 0.6s ease-in-out infinite alternate" : "none",
+        "@keyframes tfhb": { from: { transform: "translateY(0) rotate(-1deg)" }, to: { transform: "translateY(-5px) rotate(1deg)" } },
+      }}>
+        {/* Doctor-specific features (hair, glasses, etc.) */}
+        {drExtras(doctorId, size)}
+        {/* Left eye */}
+        <Box sx={{ position: "absolute", top: "26%", left: "20%", width: size*0.17, height: size*0.17, borderRadius: "50%", bgcolor: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Box sx={{ width: size*0.09, height: size*0.09, borderRadius: "50%", bgcolor: "#111827", animation: "tfbl 4s ease-in-out infinite", "@keyframes tfbl": { "0%,44%,46%,48%,100%": { transform: "scaleY(1)" }, "45%,47%": { transform: "scaleY(0.05)" } } }} />
+        </Box>
+        {/* Right eye */}
+        <Box sx={{ position: "absolute", top: "26%", right: "20%", width: size*0.17, height: size*0.17, borderRadius: "50%", bgcolor: "white", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <Box sx={{ width: size*0.09, height: size*0.09, borderRadius: "50%", bgcolor: "#111827", animation: "tfbl 4s ease-in-out infinite 0.15s" }} />
+        </Box>
+        {/* Nose */}
+        <Box sx={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%,-50%)", display: "flex", gap: `${size*0.04}px` }}>
+          <Box sx={{ width: size*0.05, height: size*0.05, borderRadius: "50%", bgcolor: "rgba(0,0,0,0.18)" }} />
+          <Box sx={{ width: size*0.05, height: size*0.05, borderRadius: "50%", bgcolor: "rgba(0,0,0,0.18)" }} />
+        </Box>
+        {/* Mouth */}
+        <Box sx={{
+          position: "absolute", bottom: "16%", left: "50%", transform: "translateX(-50%)",
+          width: size * 0.44, bgcolor: "rgba(0,0,0,0.5)",
+          height: `${size*0.055}px`, overflow: "hidden",
+          animation: speaking ? "tfmouth 0.25s ease-in-out infinite alternate" : "none",
+          "@keyframes tfmouth": { "0%": { height: `${size*0.055}px`, borderRadius: `${size}px` }, "100%": { height: `${size*0.23}px`, borderRadius: `0 0 ${size}px ${size}px` } },
+          transition: speaking ? "none" : "height 0.3s, border-radius 0.3s",
+        }}>
+          {speaking && <Box sx={{ width: "80%", height: 4, bgcolor: "rgba(255,255,255,0.8)", mx: "auto", borderRadius: 1, mt: "2px" }} />}
+        </Box>
+        {/* Logo badge */}
+        <Box sx={{ position: "absolute", bottom: 2, right: 2, width: size*0.27, height: size*0.27, borderRadius: "50%", bgcolor: "rgba(255,255,255,0.92)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size*0.15, border: `1.5px solid ${color}66` }}>{logo}</Box>
+      </Box>
+    </Box>
+  );
+}
+
 export default function VirtualPanel() {
   const { user } = useAuth();
   const [phase, setPhase] = useState<Phase>("setup");
-  const [allSpecialists, setAllSpecialists] = useState<SpecialistProfile[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [panelIds, setPanelIds] = useState<string[]>([]);
+  // LLM doctors are fixed — no API fetch needed
   const [question, setQuestion] = useState("");
   const [questionSpec, setQuestionSpec] = useState("");
   const [questionIdx, setQuestionIdx] = useState(0);
@@ -79,11 +189,11 @@ export default function VirtualPanel() {
   const [isMuted, setIsMuted] = useState(false);
 
   // Derived state — must be before useEffects that reference them
-  const panelists = allSpecialists.filter(s => panelIds.includes(s.id));
-  const currentSpeaker = panelists[speakerIdx] ?? null;
+  const panelists = getLLMDoctors();
+  const currentSpeaker: LLMDoctor | null = panelists[speakerIdx] ?? null;
   const otherPanelists = panelists.filter((_, i) => i !== speakerIdx);
   const isLastSpeaker = speakerIdx === panelists.length - 1;
-  const responseText = currentSpeaker ? getResponse(currentSpeaker.specialty ?? "", questionIdx) : "";
+  const responseText = currentSpeaker ? (currentSpeaker.responses[questionIdx] ?? currentSpeaker.responses[0] ?? "") : "";
 
   function cleanForSpeech(text: string): string {
     return text.replace(/[\u{1F300}-\u{1F9FF}\u{1F000}-\u{1F02F}\u{2600}-\u{27BF}\u{FE00}-\u{FEFF}]/gu, "").replace(/\s+/g, " ").trim();
@@ -144,11 +254,6 @@ export default function VirtualPanel() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
-  useEffect(() => {
-    api.get<SpecialistProfile[]>("/specialists")
-      .then(r => { setAllSpecialists(r.data); setPanelIds(r.data.map(s => s.id)); })
-      .finally(() => setLoading(false));
-  }, []);
 
   const { displayed, done } = useTypewriter(
     phase === "panel" ? responseText : "", 14
@@ -158,13 +263,10 @@ export default function VirtualPanel() {
     if (done) setShowReactions(true);
   }, [done]);
 
-  function computeRoundScore(speaker: SpecialistProfile, others: SpecialistProfile[], qIdx: number): number {
-    const llms = getLLMCommentaries(qIdx);
-    const peerScores = others.map(r => getReaction(r.specialty ?? "", speaker.specialty ?? "", qIdx).score * 2);
-    const llmScores = llms.map(l => l.score);
-    const all = [...peerScores, ...llmScores];
-    if (all.length === 0) return 8.0;
-    return +(all.reduce((a, b) => a + b, 0) / all.length).toFixed(1);
+  function computeRoundScore(speaker: LLMDoctor, others: LLMDoctor[], qIdx: number): number {
+    const peerScores = others.map(r => getLLMPeerScore(r.id, speaker.id, qIdx).score);
+    if (peerScores.length === 0) return 8.0;
+    return +(peerScores.reduce((a, b) => a + b, 0) / peerScores.length).toFixed(1);
   }
 
   function audienceReaction(score: number): { text: string; color: string; bg: string; emoji: string } {
@@ -175,12 +277,10 @@ export default function VirtualPanel() {
     return { emoji: "🤔", text: "Interesting take. The judges have mixed reactions.", color: "#E65100", bg: "#FFF8F0" };
   }
 
-  function getHostIntro(idx: number, total: number, speaker: SpecialistProfile): string {
-    const name = speaker.fullName?.split(" ").pop() ?? speaker.fullName ?? "our specialist";
-    const spec = speaker.specialty ?? "medicine";
-    if (idx === 0) return `Welcome to MediQ Live — Gut Health Edition! 🎙️ Our first contestant is Dr. ${name} from ${spec}. The gut health gauntlet BEGINS!`;
-    if (idx === total - 1) return `We've reached the FINAL round! 🏁 The leaderboard is tight. Can Dr. ${name} from ${spec} steal the crown? Let's find out!`;
-    return `Round ${idx + 1} is underway! 🎙️ The crowd gives a warm welcome to Dr. ${name} from ${spec}. Can they top the leaderboard?`;
+  function getHostIntro(idx: number, total: number, speaker: LLMDoctor): string {
+    if (idx === 0) return `Welcome to MediQ Live — Gut Health Edition! 🎙️ Tonight's first contestant: ${speaker.name}, the ${speaker.title}. The gauntlet BEGINS!`;
+    if (idx === total - 1) return `We've reached the FINAL round! 🏁 The leaderboard is razor-close. Can ${speaker.name} steal the crown? Let's find out!`;
+    return `Round ${idx + 1} is underway! 🎙️ Please welcome ${speaker.name} — the ${speaker.title}!`;
   }
 
   function startPanel(q: string, spec: string, idx: number) {
@@ -206,12 +306,6 @@ export default function VirtualPanel() {
     setScoresRevealed(false); setSpeakerFinalScores({});
   }
 
-  if (loading) return (
-    <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-      <CircularProgress size={48} />
-    </Box>
-  );
-
   /* ── SETUP PHASE ─────────────────────────────── */
   if (phase === "setup") return (
     <Box>
@@ -233,65 +327,36 @@ export default function VirtualPanel() {
         </Typography>
       </Box>
 
-      <Typography variant="h6" fontWeight={700} mb={2}>Assemble Your Panel</Typography>
+      <Typography variant="h6" fontWeight={700} mb={2}>Tonight's Contestants — 5 AI Doctors</Typography>
       <Grid container spacing={2} mb={4}>
-        {allSpecialists.map(s => {
-          const selected = panelIds.includes(s.id);
-          const badgeColor = BADGE_COLOR[s.rankingScore?.badge ?? "standard"];
-          return (
-            <Grid item xs={12} sm={6} md={4} key={s.id}>
-              <Card
-                onClick={() => setPanelIds(ids =>
-                  ids.includes(s.id) ? ids.filter(x => x !== s.id) : [...ids, s.id]
-                )}
-                sx={{
-                  cursor: "pointer", border: "2px solid",
-                  borderColor: selected ? "primary.main" : "divider",
-                  bgcolor: selected ? "#EEF4FF" : "background.paper",
-                  transition: "all 0.15s",
-                  "&:hover": { borderColor: "primary.main" },
-                }}
-              >
-                <CardContent sx={{ p: 2 }}>
-                  <Stack direction="row" spacing={1.5} alignItems="center">
-                    <Box sx={{ position: "relative" }}>
-                      <Avatar sx={{ bgcolor: badgeColor, width: 48, height: 48, fontWeight: 700 }}>
-                        {s.fullName?.charAt(0)}
-                      </Avatar>
-                      {selected && (
-                        <CheckCircle sx={{ position: "absolute", bottom: -4, right: -4, fontSize: 18, color: "primary.main", bgcolor: "white", borderRadius: "50%" }} />
-                      )}
-                    </Box>
-                    <Box flex={1} minWidth={0}>
-                      <Stack direction="row" spacing={0.5} alignItems="center">
-                        <Typography fontWeight={700} noWrap fontSize={14}>{s.fullName}</Typography>
-                        {s.verified && <VerifiedUser sx={{ fontSize: 14, color: "success.main" }} />}
-                      </Stack>
-                      <Typography variant="caption" color="text.secondary">{s.specialty}</Typography>
-                      <Stack direction="row" spacing={0.5} mt={0.5}>
-                        <SmartToy sx={{ fontSize: 12, color: "primary.main" }} />
-                        <Typography variant="caption" color="primary.main" fontWeight={600}>Virtual AI Active</Typography>
-                      </Stack>
-                    </Box>
-                  </Stack>
-                </CardContent>
-              </Card>
-            </Grid>
-          );
-        })}
+        {panelists.map(doc => (
+          <Grid item xs={12} sm={6} md={4} key={doc.id}>
+            <Card variant="outlined" sx={{ borderRadius: 2.5, borderLeft: `4px solid ${doc.color}`, bgcolor: doc.bgColor, transition: "all 0.15s", "&:hover": { boxShadow: `0 4px 16px ${doc.color}33` } }}>
+              <CardContent sx={{ p: 2 }}>
+                <Stack direction="row" spacing={1.5} alignItems="center">
+                  <TalkingFace color={doc.color} logo={doc.logo} speaking={false} size={56} doctorId={doc.id} />
+                  <Box flex={1} minWidth={0}>
+                    <Typography fontWeight={800} noWrap fontSize={14} color={doc.color}>{doc.name}</Typography>
+                    <Typography variant="caption" color="text.secondary" display="block">{doc.title}</Typography>
+                    <Typography variant="caption" color="text.disabled">{doc.model}</Typography>
+                  </Box>
+                </Stack>
+              </CardContent>
+            </Card>
+          </Grid>
+        ))}
       </Grid>
 
       <Alert severity="info" sx={{ mb: 3 }}>
-        <strong>{panelIds.length} specialist{panelIds.length !== 1 ? "s" : ""} selected.</strong> Virtual AI responses are educational simulations based on specialist profiles. Not a substitute for professional medical advice.
+        <strong>5 AI Doctors competing tonight.</strong> All responses are AI-generated educational simulations and do not constitute professional medical advice.
       </Alert>
 
       <Button
         variant="contained" size="large" endIcon={<ArrowForward />}
-        disabled={panelIds.length === 0}
         onClick={() => setPhase("question")}
         sx={{ px: 4, py: 1.5, fontWeight: 700 }}
       >
-        Choose a Question →
+        Choose Tonight's Question →
       </Button>
     </Box>
   );
@@ -313,7 +378,7 @@ export default function VirtualPanel() {
           </Box>
         </Stack>
         <Typography color="text.secondary" mb={3}>
-          Each specialist will answer from their unique clinical lens. {!user && <><strong>Sign in</strong> to ask a custom question.</>}
+          Each AI Doctor will answer from their unique perspective. {!user && <><strong>Sign in</strong> to ask a custom question.</>}
         </Typography>
 
         <Box mb={3}>
@@ -324,7 +389,7 @@ export default function VirtualPanel() {
             {GUT_QUESTIONS.map((q, idx) => (
               <Paper
                 key={q} variant="outlined"
-                onClick={() => startPanel(q, panelists[0]?.specialty ?? "Gut Health", idx)}
+                onClick={() => startPanel(q, "Gut Health", idx)}
                 sx={{
                   p: 1.5, cursor: "pointer", borderRadius: 2,
                   "&:hover": { borderColor: "success.main", bgcolor: "#F1F8F1" },
@@ -367,7 +432,7 @@ export default function VirtualPanel() {
               <Button
                 variant="outlined" endIcon={<ArrowForward />}
                 disabled={!customQ.trim()}
-                onClick={() => startPanel(customQ.trim(), panelists[0]?.specialty ?? "General", 0)}
+                onClick={() => startPanel(customQ.trim(), "Gut Health", 0)}
               >
                 Ask the Panel
               </Button>
@@ -387,8 +452,7 @@ export default function VirtualPanel() {
 
   /* ── PANEL DISCUSSION PHASE (TALK SHOW) ───────── */
   if (phase === "panel" && currentSpeaker) {
-    const grad = gradientFor(currentSpeaker.specialty ?? "");
-    const llmJudges = getLLMCommentaries(questionIdx);
+    const grad = currentSpeaker.color;
     const roundScore = computeRoundScore(currentSpeaker, otherPanelists, questionIdx);
     const reaction = audienceReaction(roundScore);
 
@@ -440,14 +504,15 @@ export default function VirtualPanel() {
               <Typography variant="body2" fontWeight={700} color="text.secondary">❓ {question}</Typography>
               <Stack direction="row" spacing={0.75}>
                 {panelists.map((s, i) => (
-                  <Tooltip key={s.id} title={`${s.fullName}${speakerFinalScores[s.id] ? ` · ${speakerFinalScores[s.id]}/10` : ""}`}>
+                  <Tooltip key={s.id} title={`${s.name}${speakerFinalScores[s.id] ? ` · ${speakerFinalScores[s.id]}/10` : ""}`}>
                     <Box sx={{ position: "relative" }}>
-                      <Avatar sx={{ width: 32, height: 32, fontSize: 12, fontWeight: 700,
-                        bgcolor: i === speakerIdx ? BADGE_COLOR[s.rankingScore?.badge ?? "standard"] : i < speakerIdx ? "#4CAF50" : "#E0E0E0",
+                      <Box sx={{ width: 32, height: 32, borderRadius: "50%", fontSize: 16,
+                        bgcolor: i === speakerIdx ? s.color : i < speakerIdx ? "#4CAF50" : "#E0E0E0",
                         border: i === speakerIdx ? "2px solid #1565C0" : "none",
+                        display: "flex", alignItems: "center", justifyContent: "center",
                       }}>
-                        {i < speakerIdx && speakerFinalScores[s.id] ? <EmojiEvents sx={{ fontSize: 14 }} /> : s.fullName?.charAt(0)}
-                      </Avatar>
+                        {i < speakerIdx && speakerFinalScores[s.id] ? <EmojiEvents sx={{ fontSize: 14, color: "white" }} /> : s.logo}
+                      </Box>
                       {speakerFinalScores[s.id] && (
                         <Box sx={{ position: "absolute", bottom: -8, left: "50%", transform: "translateX(-50%)", whiteSpace: "nowrap" }}>
                           <Typography fontSize={9} fontWeight={800} color="success.main">{speakerFinalScores[s.id]}</Typography>
@@ -468,24 +533,14 @@ export default function VirtualPanel() {
           <Grid item xs={12} md={8}>
             <Card sx={{ borderRadius: 3, overflow: "hidden" }}>
               {/* Gradient header with virtual avatar */}
-              <Box sx={{ background: grad, px: 3, pt: 3, pb: 4 }}>
+              <Box sx={{ background: `linear-gradient(135deg, ${grad}CC, ${grad})`, px: 3, pt: 3, pb: 4 }}>
                 <Stack direction="row" spacing={2.5} alignItems="center">
-                  <Box sx={{ position: "relative", flexShrink: 0 }}>
-                    {!done && <Box sx={{ position: "absolute", inset: -8, borderRadius: "50%", border: "2.5px solid rgba(255,255,255,0.5)", animation: "ap1 1.6s ease-in-out infinite", "@keyframes ap1": { "0%,100%": { transform: "scale(1)", opacity: 0.7 }, "50%": { transform: "scale(1.12)", opacity: 0.1 } } }} />}
-                    {!done && <Box sx={{ position: "absolute", inset: -4, borderRadius: "50%", border: "2px solid rgba(255,255,255,0.3)", animation: "ap2 1.6s ease-in-out infinite 0.4s", "@keyframes ap2": { "0%,100%": { transform: "scale(1)", opacity: 0.5 }, "50%": { transform: "scale(1.07)", opacity: 0.08 } } }} />}
-                    <Avatar sx={{ width: 80, height: 80, bgcolor: "rgba(255,255,255,0.18)", border: "3px solid rgba(255,255,255,0.55)", fontSize: 28, fontWeight: 900, boxShadow: done ? "none" : "0 0 24px rgba(255,255,255,0.3)", transition: "box-shadow 0.4s" }}>
-                      {currentSpeaker.fullName?.charAt(0)}
-                    </Avatar>
-                    <Box sx={{ position: "absolute", bottom: -2, right: -2, width: 26, height: 26, borderRadius: "50%", bgcolor: "rgba(0,0,0,0.75)", border: "2px solid rgba(255,255,255,0.4)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <SmartToy sx={{ fontSize: 14, color: "#90CAF9" }} />
-                    </Box>
-                  </Box>
+                  <TalkingFace color={currentSpeaker.color} logo={currentSpeaker.logo} speaking={!done} size={90} doctorId={currentSpeaker.id} />
                   <Box flex={1}>
                     <Stack direction="row" spacing={0.75} alignItems="center" mb={0.25}>
-                      <Typography variant="h6" fontWeight={800} color="white">{currentSpeaker.fullName}</Typography>
-                      {currentSpeaker.verified && <VerifiedUser sx={{ color: "rgba(255,255,255,0.85)", fontSize: 18 }} />}
+                      <Typography variant="h6" fontWeight={800} color="white">{currentSpeaker.name}</Typography>
                     </Stack>
-                    <Typography color="rgba(255,255,255,0.8)" fontSize={13} mb={0.75}>{currentSpeaker.specialty} · {currentSpeaker.institution ?? "Independent"}</Typography>
+                    <Typography color="rgba(255,255,255,0.8)" fontSize={13} mb={0.75}>{currentSpeaker.title} · {currentSpeaker.model}</Typography>
                     <Box sx={{ display: "inline-flex", alignItems: "center", gap: 0.5, bgcolor: "rgba(0,0,0,0.35)", borderRadius: 10, px: 1.25, py: 0.4, border: "1px solid rgba(144,202,249,0.4)" }}>
                       <Box sx={{ width: 6, height: 6, borderRadius: "50%", bgcolor: done ? "rgba(255,255,255,0.4)" : "#69F0AE", animation: done ? "none" : "dot 1s step-end infinite", "@keyframes dot": { "0%,100%": { opacity: 1 }, "50%": { opacity: 0.2 } } }} />
                       <Typography variant="caption" color="#90CAF9" fontWeight={700} fontSize={10} letterSpacing={0.5}>
@@ -523,17 +578,15 @@ export default function VirtualPanel() {
                   const scored = speakerFinalScores[s.id];
                   const isCurr = i === speakerIdx;
                   const isPend = i > speakerIdx;
-                  const sGrad = gradientFor(s.specialty ?? "");
-                  const rankEmoji = ["🥇","🥈","🥉"][i] ?? `${i+1}.`;
                   return (
                     <Box key={s.id} sx={{ bgcolor: isCurr ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)", borderRadius: 2, px: 2, py: 1.25, border: isCurr ? "1px solid rgba(255,255,255,0.2)" : "1px solid rgba(255,255,255,0.06)" }}>
                       <Stack direction="row" spacing={1.5} alignItems="center">
-                        <Avatar sx={{ width: 32, height: 32, fontSize: 12, fontWeight: 700, background: isPend ? "rgba(255,255,255,0.1)" : sGrad }}>
-                          {s.fullName?.charAt(0)}
-                        </Avatar>
+                        <Box sx={{ width: 32, height: 32, borderRadius: "50%", bgcolor: isPend ? "rgba(255,255,255,0.1)" : s.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, flexShrink: 0 }}>
+                          {s.logo}
+                        </Box>
                         <Box flex={1} minWidth={0}>
-                          <Typography color={isPend ? "rgba(255,255,255,0.35)" : "white"} fontWeight={700} fontSize={12} noWrap>{s.fullName?.split(" ").pop()}</Typography>
-                          <Typography color="rgba(255,255,255,0.4)" fontSize={10}>{s.specialty}</Typography>
+                          <Typography color={isPend ? "rgba(255,255,255,0.35)" : "white"} fontWeight={700} fontSize={12} noWrap>{s.name}</Typography>
+                          <Typography color="rgba(255,255,255,0.4)" fontSize={10}>{s.title}</Typography>
                         </Box>
                         <Box textAlign="right">
                           {scored ? (
@@ -562,78 +615,39 @@ export default function VirtualPanel() {
             <Box mt={4}>
               <Divider sx={{ mb: 3 }} />
 
-              {/* Specialist judge reactions */}
-              {otherPanelists.length > 0 && (
-                <Box mb={3}>
-                  <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={2} display="block" mb={1.5}>
-                    ⚖️ SPECIALIST JUDGES
-                  </Typography>
-                  <Grid container spacing={1.5}>
-                    {otherPanelists.map(reactor => {
-                      const r = getReaction(reactor.specialty ?? "", currentSpeaker.specialty ?? "", questionIdx);
-                      const rColor = BADGE_COLOR[reactor.rankingScore?.badge ?? "standard"];
-                      return (
-                        <Grid item xs={12} sm={6} key={reactor.id}>
-                          <Fade in={showReactions}>
-                            <Card variant="outlined" sx={{ borderRadius: 2 }}>
-                              <CardContent sx={{ p: 1.75, "&:last-child": { pb: 1.75 } }}>
-                                <Stack direction="row" spacing={1} alignItems="center" mb={0.75}>
-                                  <Box sx={{ position: "relative", flexShrink: 0 }}>
-                                    <Avatar sx={{ bgcolor: rColor, width: 34, height: 34, fontSize: 13, fontWeight: 700 }}>{reactor.fullName?.charAt(0)}</Avatar>
-                                    <Box sx={{ position: "absolute", bottom: -2, right: -2, width: 14, height: 14, borderRadius: "50%", bgcolor: "#1A237E", border: "1.5px solid white", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                                      <SmartToy sx={{ fontSize: 9, color: "#90CAF9" }} />
-                                    </Box>
-                                  </Box>
-                                  <Box flex={1} minWidth={0}>
-                                    <Typography variant="caption" fontWeight={700} noWrap>{reactor.fullName?.split(" ").pop()} <Typography component="span" variant="caption" color="text.disabled">· {reactor.specialty}</Typography></Typography>
-                                  </Box>
-                                  <Stack alignItems="flex-end">
-                                    {showReactions ? (
-                                      <>
-                                        <Rating value={r.score} precision={0.5} size="small" readOnly sx={{ fontSize: 14 }} />
-                                        <Typography variant="caption" fontWeight={800} color="primary.main">{(r.score * 2).toFixed(1)}/10</Typography>
-                                      </>
-                                    ) : <Box sx={{ width: 60, height: 20, bgcolor: "#F0F0F0", borderRadius: 1 }} />}
-                                  </Stack>
-                                </Stack>
-                                {showReactions
-                                  ? <Typography variant="caption" color="text.secondary" lineHeight={1.5}>{r.comment}</Typography>
-                                  : <Box sx={{ width: "100%", height: 24, bgcolor: "#F8F8F8", borderRadius: 1 }} />}
-                              </CardContent>
-                            </Card>
-                          </Fade>
-                        </Grid>
-                      );
-                    })}
-                  </Grid>
-                </Box>
-              )}
-
-              {/* AI Model Judges with scores */}
+              {/* AI Doctor Peer Judge Scores */}
               <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={2} display="block" mb={1.5}>
-                🤖 AI MODEL JUDGES
+                ⚖️ JUDGE PANEL — PEER SCORES
               </Typography>
               <Grid container spacing={1.5} mb={3}>
-                {llmJudges.map((llm, i) => (
-                  <Grid item xs={6} sm={4} key={llm.id}>
-                    <Fade in={showReactions} style={{ transitionDelay: `${i * 70}ms` }}>
-                      <Card variant="outlined" sx={{ borderLeft: `4px solid ${llm.color}`, bgcolor: llm.bgColor, borderRadius: 2 }}>
-                        <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
-                          <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
-                            <Stack direction="row" spacing={0.75} alignItems="center">
-                              <Box sx={{ width: 24, height: 24, borderRadius: "50%", bgcolor: llm.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, color: "white", fontWeight: 800, flexShrink: 0 }}>{llm.logo}</Box>
-                              <Typography fontWeight={800} fontSize={12}>{llm.name}</Typography>
+                {otherPanelists.map((judge, i) => {
+                  const r = getLLMPeerScore(judge.id, currentSpeaker.id, questionIdx);
+                  return (
+                    <Grid item xs={6} sm={4} key={judge.id}>
+                      <Fade in={showReactions} style={{ transitionDelay: `${i * 70}ms` }}>
+                        <Card variant="outlined" sx={{ borderLeft: `4px solid ${judge.color}`, bgcolor: judge.bgColor, borderRadius: 2 }}>
+                          <CardContent sx={{ p: 1.5, "&:last-child": { pb: 1.5 } }}>
+                            <Stack direction="row" justifyContent="space-between" alignItems="center" mb={0.5}>
+                              <Stack direction="row" spacing={0.75} alignItems="center">
+                                <Box sx={{ width: 28, height: 28, borderRadius: "50%", bgcolor: judge.color, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, flexShrink: 0 }}>{judge.logo}</Box>
+                                <Box>
+                                  <Typography fontWeight={800} fontSize={12}>{judge.name}</Typography>
+                                  <Typography variant="caption" color="text.disabled" fontSize={9}>{judge.title}</Typography>
+                                </Box>
+                              </Stack>
+                              {showReactions
+                                ? <Typography fontWeight={900} fontSize={20} color={judge.color}>{r.score}</Typography>
+                                : <Box sx={{ width: 36, height: 22, bgcolor: "#F0F0F0", borderRadius: 1 }} />}
                             </Stack>
-                            <Typography fontWeight={900} fontSize={18} color={llm.color}>{llm.score}</Typography>
-                          </Stack>
-                          <Typography variant="caption" color="text.secondary" fontSize={10} lineHeight={1.5} display="block">
-                            {llm.comment.split(" ").slice(0, 16).join(" ")}…
-                          </Typography>
-                        </CardContent>
-                      </Card>
-                    </Fade>
-                  </Grid>
-                ))}
+                            {showReactions
+                              ? <Typography variant="caption" color="text.secondary" fontSize={10} lineHeight={1.5} display="block">{r.comment}</Typography>
+                              : <Box sx={{ width: "100%", height: 24, bgcolor: "#F8F8F8", borderRadius: 1 }} />}
+                          </CardContent>
+                        </Card>
+                      </Fade>
+                    </Grid>
+                  );
+                })}
               </Grid>
 
               {/* ── Score Reveal ── */}
@@ -643,7 +657,7 @@ export default function VirtualPanel() {
                   onClick={() => setScoresRevealed(true)}
                   sx={{ py: 1.75, fontWeight: 800, fontSize: 15, background: "linear-gradient(90deg, #F57F17, #FF8F00)", "&:hover": { background: "linear-gradient(90deg, #E65100, #F57F17)" } }}
                 >
-                  🎯 Reveal {currentSpeaker.fullName?.split(" ").pop()}'s Final Score
+                  🎯 Reveal {currentSpeaker.name}'s Final Score
                 </Button>
               ) : (
                 <Fade in>
@@ -660,12 +674,9 @@ export default function VirtualPanel() {
                       {/* Bar of all judge scores */}
                       <Stack direction="row" spacing={0.75} justifyContent="center" flexWrap="wrap" mt={2}>
                         {otherPanelists.map(r => {
-                          const sc = getReaction(r.specialty ?? "", currentSpeaker.specialty ?? "", questionIdx).score * 2;
-                          return <Chip key={r.id} label={`${r.fullName?.split(" ").pop()} ${sc.toFixed(1)}`} size="small" sx={{ bgcolor: "rgba(255,255,255,0.1)", color: "white", fontSize: 10 }} />;
+                          const sc = getLLMPeerScore(r.id, currentSpeaker.id, questionIdx).score;
+                          return <Chip key={r.id} label={`${r.name} ${sc}`} size="small" sx={{ bgcolor: r.color + "33", color: "white", fontSize: 10 }} />;
                         })}
-                        {llmJudges.map(llm => (
-                          <Chip key={llm.id} label={`${llm.name} ${llm.score}`} size="small" sx={{ bgcolor: llm.color + "33", color: "white", fontSize: 10 }} />
-                        ))}
                       </Stack>
                     </Card>
 
@@ -699,8 +710,8 @@ export default function VirtualPanel() {
           <Typography variant="overline" color="rgba(255,255,255,0.5)" letterSpacing={3} fontSize={11} display="block">MEDIQ LIVE — FINAL RESULTS</Typography>
           <Typography variant="h6" color="rgba(255,255,255,0.7)" fontWeight={500} mt={1} mb={0.5}>"{question}"</Typography>
           <Typography fontSize={48} mb={0.5}>🏆</Typography>
-          <Typography variant="h4" fontWeight={900} color="#FFD700">{winner?.fullName}</Typography>
-          <Typography color="rgba(255,255,255,0.6)" mb={2}>{winner?.specialty} · Score: <strong style={{ color: "#FFD700" }}>{speakerFinalScores[winner?.id ?? ""] ?? "–"}/10</strong></Typography>
+          <Typography variant="h4" fontWeight={900} color="#FFD700">{winner?.name}</Typography>
+          <Typography color="rgba(255,255,255,0.6)" mb={2}>{winner?.title} · Score: <strong style={{ color: "#FFD700" }}>{speakerFinalScores[winner?.id ?? ""] ?? "–"}/10</strong></Typography>
           <Chip label="CHAMPION OF THE NIGHT" sx={{ bgcolor: "#F57F17", color: "white", fontWeight: 800, fontSize: 12, px: 1 }} />
         </Box>
 
@@ -708,20 +719,20 @@ export default function VirtualPanel() {
         <Typography variant="overline" fontWeight={800} fontSize={11} letterSpacing={2} display="block" mb={2}>🏅 FINAL STANDINGS</Typography>
         <Stack spacing={1.5} mb={4}>
           {sorted.map((s, rank) => {
-            const grad = gradientFor(s.specialty ?? "");
+            const grad = s.color;
             const score = speakerFinalScores[s.id];
             const isWinner = rank === 0;
             return (
               <Card key={s.id} sx={{ borderRadius: 2, overflow: "hidden", border: isWinner ? "2px solid #FFD700" : undefined, boxShadow: isWinner ? "0 0 20px rgba(255,215,0,0.3)" : undefined }}>
                 <Stack direction="row">
-                  <Box sx={{ width: 6, background: grad, flexShrink: 0 }} />
+                  <Box sx={{ width: 6, bgcolor: grad, flexShrink: 0 }} />
                   <CardContent sx={{ p: 2, flex: 1 }}>
                     <Stack direction="row" spacing={2} alignItems="center">
                       <Typography fontSize={28}>{podiumEmoji[rank] ?? `${rank + 1}`}</Typography>
-                      <Avatar sx={{ background: grad, width: 48, height: 48, fontWeight: 700, fontSize: 18 }}>{s.fullName?.charAt(0)}</Avatar>
+                      <Box sx={{ width: 48, height: 48, borderRadius: "50%", bgcolor: grad, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24, flexShrink: 0 }}>{s.logo}</Box>
                       <Box flex={1}>
-                        <Typography fontWeight={800} fontSize={15}>{s.fullName}</Typography>
-                        <Typography variant="caption" color="text.secondary">{s.specialty}</Typography>
+                        <Typography fontWeight={800} fontSize={15}>{s.name}</Typography>
+                        <Typography variant="caption" color="text.secondary">{s.title}</Typography>
                       </Box>
                       <Box textAlign="right">
                         <Typography fontWeight={900} fontSize={28} color={isWinner ? "#F57F17" : "text.primary"}>{score ?? "–"}</Typography>
@@ -729,7 +740,7 @@ export default function VirtualPanel() {
                       </Box>
                     </Stack>
                     <Typography variant="body2" color="text.secondary" lineHeight={1.65} mt={1.5} fontSize={13}>
-                      {getResponse(s.specialty ?? "", questionIdx).split(" ").slice(0, 35).join(" ")}…
+                      {(s.responses[questionIdx] ?? s.responses[0] ?? "").split(" ").slice(0, 35).join(" ")}…
                     </Typography>
                   </CardContent>
                 </Stack>

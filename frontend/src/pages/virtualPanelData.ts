@@ -281,6 +281,54 @@ export const LLM_PROVIDERS: LLMProvider[] = [
   },
 ];
 
+export interface LLMDoctor {
+  id: string; name: string; model: string; title: string;
+  color: string; bgColor: string; logo: string; responses: string[];
+}
+
+const LLM_DOCTOR_META: Record<string, { name: string; title: string }> = {
+  openai:    { name: "Dr. GPT",    title: "Chief Intelligence Officer" },
+  anthropic: { name: "Dr. Claude", title: "Reasoning & Safety Specialist" },
+  kimi:      { name: "Dr. Kimi",   title: "Knowledge Navigation Expert" },
+  sensenova: { name: "Dr. Nova",   title: "Analytical Data Pathologist" },
+  gemini:    { name: "Dr. Gemini", title: "Synthesis & Discovery Specialist" },
+};
+
+const SCORER_VOICE: Record<string, string[]> = {
+  openai:    ["Well-structured, though the evidence hierarchy deserves sharper framing.","Strong technical foundation — the clinical translation could be tightened.","Competent synthesis. Individual variation factors were underweighted.","Solid reasoning. The RCT data angle was underexplored here.","Good analytical base. The mechanistic pathway explanation was rushed.","Rigorous foundation. I'd push harder on the longitudinal evidence.","Well-reasoned, though gut-brain axis nuance was notably absent.","Strong clinical framework — the personalization angle was underdeveloped.","Competent overview. The microbiome diversity discussion was too brief.","Good scope. The dietary intervention evidence deserved more specificity."],
+  anthropic: ["Thoughtful framing with appropriate epistemic humility.","Well-reasoned — patient-centred communication could be stronger.","Good handling of uncertainty; the caveats were well-placed.","Careful and safe reasoning. The uncertainty bounds were appropriate.","Rigorous approach. Would benefit from stronger clinical specificity.","Balanced perspective. The safety considerations were appropriately weighted.","Nuanced and careful. I'd appreciate more on individualised treatment pathways.","Excellent epistemic care. The evidence grading was appropriately conservative.","Good reasoning structure. The clinical translation could be more actionable.","Well-calibrated confidence. The preventive framing was particularly strong."],
+  kimi:      ["Excellent data coverage and population-level grounding.","Comprehensive retrieval — the synthesis could be tighter for clinical use.","Strong evidence base. The global epidemiology angle added real value.","Well-researched. The mechanistic detail was appreciated here.","Good breadth. Gut-brain axis depth could be substantially enhanced.","Impressive citation density. The systematic review framing was a plus.","Strong factual grounding. The comparative efficacy data was well-integrated.","Excellent knowledge retrieval. Clinical prioritisation could be clearer.","Good epidemiological framing. The pathophysiology section was robust.","Thorough data synthesis. The probiotic strain specificity was appreciated."],
+  sensenova: ["Precise and analytical — the quantitative framing was appropriate.","Good clinical grounding. Statistical nuance was well-handled throughout.","Methodical and structured. The differential reasoning was sound.","Data-driven and rigorous. Clinical applicability could be highlighted more.","Structured response. The sensitivity framing deserves further development.","Strong analytical rigour. The dose-response framing was particularly apt.","Precise and data-forward. The biomarker discussion was well-calibrated.","Good quantitative depth. The NNT framing added clinical relevance.","Systematic and clear. The risk stratification logic was well-presented.","Analytical and thorough. The correlation vs causation framing was precise."],
+  gemini:    ["Strong synthesis across multiple knowledge domains.","Well-integrated — the cross-disciplinary connections added real value.","Impressive breadth. The discovery-layer insights were genuinely useful.","Good multimodal reasoning. Systems-level view was appreciated.","Solid multi-source synthesis. Patient actionability could be stronger.","Excellent knowledge integration. The research horizon section was insightful.","Strong interdisciplinary framing. The lifestyle-microbiome link was compelling.","Good synthesis quality. The emerging therapeutics section stood out.","Well-integrated evidence. The nutrigenomics framing was forward-thinking.","Broad and well-synthesised. The personalised medicine angle was valuable."],
+};
+
+const LLM_PEER_BASE: Record<string, Record<string, number>> = {
+  openai:    { anthropic: 8.4, kimi: 7.7, sensenova: 7.4, gemini: 8.1 },
+  anthropic: { openai: 8.2, kimi: 7.9, sensenova: 7.3, gemini: 8.0 },
+  kimi:      { openai: 7.8, anthropic: 8.3, sensenova: 8.1, gemini: 7.7 },
+  sensenova: { openai: 7.9, anthropic: 8.0, kimi: 8.2, gemini: 7.6 },
+  gemini:    { openai: 8.3, anthropic: 8.4, kimi: 7.8, sensenova: 7.5 },
+};
+
+export function getLLMDoctors(): LLMDoctor[] {
+  return LLM_PROVIDERS.map(p => ({
+    id: p.id,
+    name: LLM_DOCTOR_META[p.id]?.name ?? `Dr. ${p.name}`,
+    model: p.fullName,
+    title: LLM_DOCTOR_META[p.id]?.title ?? "AI Medical Specialist",
+    color: p.color, bgColor: p.bgColor, logo: p.logo,
+    responses: p.responses,
+  }));
+}
+
+export function getLLMPeerScore(scorerId: string, subjectId: string, qIdx: number): { score: number; comment: string } {
+  const base = LLM_PEER_BASE[scorerId]?.[subjectId] ?? 7.5;
+  const v = Math.sin((qIdx + 1) * 0.9 + scorerId.length * 0.5 + subjectId.length * 0.3) * 0.55;
+  const score = Math.round(Math.min(9.8, Math.max(6.0, base + v)) * 10) / 10;
+  const comments = SCORER_VOICE[scorerId] ?? ["Solid response with good clinical insight."];
+  return { score, comment: comments[qIdx % comments.length] };
+}
+
 const LLM_BASE_SCORES: Record<string, number> = {
   openai: 8.3, anthropic: 8.6, kimi: 7.9, sensenova: 7.7, gemini: 8.1,
 };
