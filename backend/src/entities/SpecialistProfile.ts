@@ -62,7 +62,7 @@ export class SpecialistProfile {
   @Column({ default: false })
   verified!: boolean;
 
-  @Column({ nullable: true, type: "datetime" })
+  @Column({ nullable: true, type: "timestamptz" })
   verifiedAt!: Date | null;
 
   @ManyToOne(() => User, { nullable: true })
