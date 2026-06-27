@@ -292,5 +292,5 @@ export const appReady: Promise<void> = init().then(async () => {
   }
 }).catch((err) => {
   console.error(err);
-  process.exit(1);
+  throw err;
 }) as Promise<void>;
