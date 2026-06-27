@@ -41,14 +41,16 @@ const AppDataSource = new DataSource({
   ],
 });
 
+// Start connecting immediately at module load — before Fastify plugin registration
+const dbInitPromise = AppDataSource.isInitialized
+  ? Promise.resolve()
+  : AppDataSource.initialize();
+
 export default fp(async (fastify: FastifyInstance) => {
-  if (!AppDataSource.isInitialized) {
-    await AppDataSource.initialize();
-  }
+  await dbInitPromise;
   fastify.decorate("db", AppDataSource);
 
   fastify.addHook("onClose", async () => {
-    // Don't destroy in serverless — keep connection alive across invocations
     if (process.env.NODE_ENV !== "production") {
       await AppDataSource.destroy();
     }
