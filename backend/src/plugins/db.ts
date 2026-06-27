@@ -1,5 +1,3 @@
-import fp from "fastify-plugin";
-import { FastifyInstance } from "fastify";
 import { DataSource } from "typeorm";
 import { User } from "../entities/User";
 import { StudentProfile } from "../entities/StudentProfile";
@@ -41,18 +39,11 @@ const AppDataSource = new DataSource({
   ],
 });
 
-// Start connecting immediately at module load — before Fastify plugin registration
-const dbInitPromise = AppDataSource.isInitialized
-  ? Promise.resolve()
-  : AppDataSource.initialize();
+export { AppDataSource };
 
-export default fp(async (fastify: FastifyInstance) => {
-  await dbInitPromise;
-  fastify.decorate("db", AppDataSource);
-
-  fastify.addHook("onClose", async () => {
-    if (process.env.NODE_ENV !== "production") {
-      await AppDataSource.destroy();
-    }
-  });
-});
+export async function connectDb(): Promise<DataSource> {
+  if (!AppDataSource.isInitialized) {
+    await AppDataSource.initialize();
+  }
+  return AppDataSource;
+}

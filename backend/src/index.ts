@@ -3,7 +3,7 @@ import "reflect-metadata";
 import Fastify, { FastifyRequest, FastifyReply } from "fastify";
 import cors from "@fastify/cors";
 import jwt from "@fastify/jwt";
-import dbPlugin from "./plugins/db";
+import { AppDataSource, connectDb } from "./plugins/db";
 import authRoutes from "./routes/auth";
 import specialistRoutes from "./routes/specialists";
 import contentRoutes from "./routes/content";
@@ -34,43 +34,77 @@ const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024, pluginTimeout: 
 
 const JWT_SECRET = process.env.JWT_SECRET || "mediq-dev-secret-2024";
 
-async function init() {
-  await app.register(cors, { origin: true });
-  await app.register(jwt, { secret: JWT_SECRET });
-  await app.register(dbPlugin);
+// Boot the HTTP layer (routes, plugins) WITHOUT waiting on the database.
+// This guarantees the function responds (health/debug-env work) even if the
+// DB is unreachable, so connectivity issues are diagnosable instead of hanging.
+let httpBooted: Promise<void> | null = null;
+function bootHttp(): Promise<void> {
+  if (httpBooted) return httpBooted;
+  httpBooted = (async () => {
+    app.decorate("db", AppDataSource);
+    await app.register(cors, { origin: true });
+    await app.register(jwt, { secret: JWT_SECRET });
 
-  app.decorate(
-    "authenticate",
-    async (request: FastifyRequest, reply: FastifyReply) => {
-      try {
-        await request.jwtVerify();
-      } catch (err) {
-        reply.status(401).send({ error: "Unauthorized" });
+    app.decorate(
+      "authenticate",
+      async (request: FastifyRequest, reply: FastifyReply) => {
+        try {
+          await request.jwtVerify();
+        } catch (err) {
+          reply.status(401).send({ error: "Unauthorized" });
+        }
       }
-    }
-  );
+    );
 
-  await app.register(authRoutes, { prefix: "/api/auth" });
-  await app.register(specialistRoutes, { prefix: "/api/specialists" });
-  await app.register(contentRoutes, { prefix: "/api/content" });
-  await app.register(activityRoutes, { prefix: "/api/activities" });
-  await app.register(rankingRoutes, { prefix: "/api/rankings" });
-  await app.register(specialtyRoutes, { prefix: "/api/specialties" });
-  await app.register(notificationRoutes, { prefix: "/api/notifications" });
-  await app.register(gutExplorerRoutes, { prefix: "/api/gut-explorer" });
-  await app.register(knowledgeSearchRoutes, { prefix: "/api/knowledge" });
-  await app.register(gutPanelRoutes, { prefix: "/api/gut-panel" });
+    await app.register(authRoutes, { prefix: "/api/auth" });
+    await app.register(specialistRoutes, { prefix: "/api/specialists" });
+    await app.register(contentRoutes, { prefix: "/api/content" });
+    await app.register(activityRoutes, { prefix: "/api/activities" });
+    await app.register(rankingRoutes, { prefix: "/api/rankings" });
+    await app.register(specialtyRoutes, { prefix: "/api/specialties" });
+    await app.register(notificationRoutes, { prefix: "/api/notifications" });
+    await app.register(gutExplorerRoutes, { prefix: "/api/gut-explorer" });
+    await app.register(knowledgeSearchRoutes, { prefix: "/api/knowledge" });
+    await app.register(gutPanelRoutes, { prefix: "/api/gut-panel" });
 
-  app.get("/health", async () => ({ status: "ok" }));
-  app.get("/debug-env", async () => ({
-    hasDb: !!process.env.DATABASE_URL,
-    dbPrefix: process.env.DATABASE_URL?.slice(0, 60),
-    nodeEnv: process.env.NODE_ENV,
-    dbReady: app.db?.isInitialized ?? false,
-  }));
+    app.get("/health", async () => ({ status: "ok" }));
+    app.get("/debug-env", async () => ({
+      hasDb: !!process.env.DATABASE_URL,
+      dbPrefix: process.env.DATABASE_URL?.slice(0, 45),
+      nodeEnv: process.env.NODE_ENV,
+      dbReady: AppDataSource.isInitialized,
+    }));
 
-  await seed(app);
-  await syncRankings(app);
+    await app.ready();
+  })();
+  return httpBooted;
+}
+
+// Connect the DB and seed once. Retriable: on failure the cached promise is
+// cleared so the next request tries again instead of failing permanently.
+let dbReady: Promise<void> | null = null;
+let seeded = false;
+function ensureDb(): Promise<void> {
+  if (!dbReady) {
+    dbReady = (async () => {
+      await connectDb();
+      if (!seeded) {
+        seeded = true;
+        await seed(app);
+        await syncRankings(app);
+      }
+    })().catch((err) => {
+      console.error(err);
+      dbReady = null;
+      throw err;
+    });
+  }
+  return dbReady;
+}
+
+async function init() {
+  await bootHttp();
+  await ensureDb();
 }
 
 // Ranking scores are a derived/cached value. Recompute them from the source of
@@ -288,15 +322,28 @@ async function seed(app: typeof Fastify.prototype) {
   console.log("✅ MEDIQ seed data loaded.");
 }
 
-export { app };
+export { app, init, bootHttp, ensureDb };
 
-export const appReady: Promise<void> = init().then(async () => {
-  if (require.main === module) {
+// Serverless readiness: always boot the HTTP layer so the function responds.
+// Attempt the DB connection but DON'T block routing on it — DB-backed routes
+// will surface their own errors, while /health and /debug-env stay reachable.
+export async function getAppReady(): Promise<void> {
+  await bootHttp();
+  ensureDb().catch(() => {
+    /* swallowed here; DB routes will report errors individually */
+  });
+}
+
+// Local dev: boot HTTP, connect DB, then listen.
+if (require.main === module) {
+  (async () => {
+    await bootHttp();
+    await ensureDb();
     const port = Number(process.env.PORT) || 3001;
     await app.listen({ port, host: "0.0.0.0" });
     console.log(`MEDIQ API running on http://localhost:${port}`);
-  }
-}).catch((err) => {
-  console.error(err);
-  throw err;
-}) as Promise<void>;
+  })().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}
