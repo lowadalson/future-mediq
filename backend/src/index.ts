@@ -62,6 +62,12 @@ async function init() {
   await app.register(gutPanelRoutes, { prefix: "/api/gut-panel" });
 
   app.get("/health", async () => ({ status: "ok" }));
+  app.get("/debug-env", async () => ({
+    hasDb: !!process.env.DATABASE_URL,
+    dbPrefix: process.env.DATABASE_URL?.slice(0, 60),
+    nodeEnv: process.env.NODE_ENV,
+    dbReady: app.db?.isInitialized ?? false,
+  }));
 
   await seed(app);
   await syncRankings(app);
