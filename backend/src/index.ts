@@ -67,13 +67,26 @@ function bootHttp(): Promise<void> {
     await app.register(knowledgeSearchRoutes, { prefix: "/api/knowledge" });
     await app.register(gutPanelRoutes, { prefix: "/api/gut-panel" });
 
-    app.get("/health", async () => ({ status: "ok" }));
-    app.get("/debug-env", async () => ({
-      hasDb: !!process.env.DATABASE_URL,
-      dbPrefix: process.env.DATABASE_URL?.slice(0, 45),
-      nodeEnv: process.env.NODE_ENV,
-      dbReady: AppDataSource.isInitialized,
-    }));
+    const healthHandler = async () => ({ status: "ok" });
+    const debugHandler = async () => {
+      let dbError: string | null = null;
+      try {
+        await connectDb();
+      } catch (e) {
+        dbError = e instanceof Error ? e.message : String(e);
+      }
+      return {
+        hasDb: !!process.env.DATABASE_URL,
+        dbPrefix: process.env.DATABASE_URL?.slice(0, 45),
+        nodeEnv: process.env.NODE_ENV,
+        dbReady: AppDataSource.isInitialized,
+        dbError,
+      };
+    };
+    app.get("/health", healthHandler);
+    app.get("/api/health", healthHandler);
+    app.get("/debug-env", debugHandler);
+    app.get("/api/debug-env", debugHandler);
 
     await app.ready();
   })();
