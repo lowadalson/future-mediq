@@ -45,6 +45,13 @@ function bootHttp(): Promise<void> {
     await app.register(cors, { origin: true });
     await app.register(jwt, { secret: JWT_SECRET });
 
+    // Ensure the DB is connected before handling any request (except the
+    // health/debug probes). Idempotent + retriable via ensureDb().
+    app.addHook("onRequest", async (request) => {
+      if (request.url.includes("/health") || request.url.includes("/debug-env")) return;
+      await ensureDb();
+    });
+
     app.decorate(
       "authenticate",
       async (request: FastifyRequest, reply: FastifyReply) => {
