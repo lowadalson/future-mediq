@@ -19,8 +19,9 @@ declare module "fastify" {
 }
 
 const AppDataSource = new DataSource({
-  type: "better-sqlite3",
-  database: "./mediq.db",
+  type: "postgres",
+  url: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
   synchronize: true,
   logging: false,
   entities: [

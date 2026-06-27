@@ -38,7 +38,7 @@ export class ContentItem {
   @Column({ nullable: true, type: "varchar" })
   channelName!: string | null;
 
-  @Column({ nullable: true, type: "datetime" })
+  @Column({ nullable: true, type: "timestamptz" })
   publishedAt!: Date | null;
 
   @Column({ nullable: true, type: "int" })

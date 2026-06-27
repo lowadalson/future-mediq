@@ -34,7 +34,7 @@ const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "mediq-dev-secret-2024";
 
-async function bootstrap() {
+async function init() {
   await app.register(cors, { origin: true });
   await app.register(jwt, { secret: JWT_SECRET });
   await app.register(dbPlugin);
@@ -65,10 +65,6 @@ async function bootstrap() {
 
   await seed(app);
   await syncRankings(app);
-
-  const port = Number(process.env.PORT) || 3001;
-  await app.listen({ port, host: "0.0.0.0" });
-  console.log(`MEDIQ API running on http://localhost:${port}`);
 }
 
 // Ranking scores are a derived/cached value. Recompute them from the source of
@@ -286,7 +282,15 @@ async function seed(app: typeof Fastify.prototype) {
   console.log("✅ MEDIQ seed data loaded.");
 }
 
-bootstrap().catch((err) => {
+export { app };
+
+export const appReady: Promise<void> = init().then(async () => {
+  if (require.main === module) {
+    const port = Number(process.env.PORT) || 3001;
+    await app.listen({ port, host: "0.0.0.0" });
+    console.log(`MEDIQ API running on http://localhost:${port}`);
+  }
+}).catch((err) => {
   console.error(err);
   process.exit(1);
-});
+}) as Promise<void>;

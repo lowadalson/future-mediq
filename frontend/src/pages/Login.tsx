@@ -8,18 +8,19 @@ import {
   Paper,
   Stack,
   Alert,
-  Link,
 } from "@mui/material";
-import { useNavigate, Link as RouterLink } from "react-router-dom";
+import { useNavigate, Navigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
 export default function Login() {
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("sarah@mediq.com");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  if (user) return <Navigate to="/dashboard" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -104,13 +105,6 @@ export default function Login() {
               </Button>
             </Stack>
           </form>
-
-          <Typography variant="body2" textAlign="center" mt={2} color="text.secondary">
-            Don't have an account?{" "}
-            <Link component={RouterLink} to="/register" fontWeight={600}>
-              Register
-            </Link>
-          </Typography>
 
           <Box mt={2} sx={{ borderRadius: 2, overflow: "hidden", border: "1.5px solid", borderColor: "primary.light" }}>
             <Box sx={{ bgcolor: "primary.main", px: 2, py: 1 }}>

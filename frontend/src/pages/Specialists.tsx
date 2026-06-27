@@ -73,15 +73,36 @@ export default function Specialists() {
 
   return (
     <Box>
-      <Typography variant="h4" fontWeight={700} mb={0.5}>Specialist Directory</Typography>
-      <Typography color="text.secondary" mb={4}>Connect with verified medical specialists ranked by real-world impact</Typography>
+      <Stack direction={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ sm: "flex-start" }} spacing={1} mb={0.5}>
+        <Box>
+          <Typography variant="h4" fontWeight={700} mb={0.5}>Specialist Directory</Typography>
+          <Typography color="text.secondary">Connect with verified medical specialists ranked by real-world impact</Typography>
+        </Box>
+        {canEnrich && (
+          <Button
+            variant="contained"
+            startIcon={enriching ? <CircularProgress size={16} color="inherit" /> : <TravelExplore />}
+            onClick={handleEnrich}
+            disabled={enriching}
+            sx={{ flexShrink: 0 }}
+          >
+            {enriching ? "Enriching…" : "Enrich from Web"}
+          </Button>
+        )}
+      </Stack>
+
+      {enrichMsg && (
+        <Alert severity={enrichMsg.ok ? "success" : "error"} onClose={() => setEnrichMsg(null)} sx={{ mt: 2, mb: 1 }}>
+          {enrichMsg.msg}
+        </Alert>
+      )}
 
       <TextField
         placeholder="Search by name, specialty or institution..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
         InputProps={{ startAdornment: <InputAdornment position="start"><Search color="action" /></InputAdornment> }}
-        sx={{ mb: 4, maxWidth: 500 }}
+        sx={{ mt: 3, mb: 4, maxWidth: 500 }}
         size="small"
         fullWidth
       />

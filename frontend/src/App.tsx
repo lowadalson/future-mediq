@@ -2,9 +2,7 @@ import { Routes, Route, Navigate } from "react-router-dom";
 import { useAuth } from "./contexts/AuthContext";
 import { CircularProgress, Box } from "@mui/material";
 import Layout from "./components/Layout";
-import Landing from "./pages/Landing";
 import Login from "./pages/Login";
-import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import DiscoveryAI from "./pages/DiscoveryAI";
 import KnowledgeUniverse from "./pages/KnowledgeUniverse";
@@ -38,9 +36,9 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/" element={<Landing />} />
+      <Route path="/" element={<Navigate to="/login" replace />} />
       <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      <Route path="/register" element={<Navigate to="/login" replace />} />
       <Route
         element={
           <RequireAuth>
