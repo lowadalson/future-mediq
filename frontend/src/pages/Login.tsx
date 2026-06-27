@@ -106,31 +106,6 @@ export default function Login() {
             </Stack>
           </form>
 
-          <Box mt={2} sx={{ borderRadius: 2, overflow: "hidden", border: "1.5px solid", borderColor: "primary.light" }}>
-            <Box sx={{ bgcolor: "primary.main", px: 2, py: 1 }}>
-              <Typography variant="caption" fontWeight={700} color="white">⚡ Quick Demo Access</Typography>
-            </Box>
-            <Box px={2} py={1.5} bgcolor="#F5F7FF">
-              <Stack spacing={1}>
-                <Button
-                  fullWidth variant="outlined" size="small"
-                  onClick={async () => { setLoading(true); try { await login("sarah@mediq.com","password123"); navigate("/gut-series"); } catch { setError("Demo login failed"); } finally { setLoading(false); } }}
-                  disabled={loading}
-                  sx={{ justifyContent: "flex-start", gap: 1, borderColor: "#E53935", color: "#E53935", "&:hover": { borderColor: "#E53935", bgcolor: "#FFF5F5" } }}
-                >
-                  🔬 <strong>Gut Series Demo</strong> — Dr. Sarah Lim, Cardiologist
-                </Button>
-                <Button
-                  fullWidth variant="outlined" size="small"
-                  onClick={async () => { setLoading(true); try { await login("student@mediq.com","password123"); navigate("/dashboard"); } catch { setError("Demo login failed"); } finally { setLoading(false); } }}
-                  disabled={loading}
-                  sx={{ justifyContent: "flex-start", gap: 1 }}
-                >
-                  🎓 <strong>Student Demo</strong> — Explore as a student
-                </Button>
-              </Stack>
-            </Box>
-          </Box>
         </Paper>
       </Container>
     </Box>
