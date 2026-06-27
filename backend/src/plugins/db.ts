@@ -24,6 +24,9 @@ const AppDataSource = new DataSource({
   ssl: { rejectUnauthorized: false },
   synchronize: process.env.NODE_ENV !== "production",
   logging: false,
+  connectTimeoutMS: 10000,
+  poolSize: 2,
+  extra: { connectionTimeoutMillis: 10000, idleTimeoutMillis: 30000 },
   entities: [
     User,
     StudentProfile,

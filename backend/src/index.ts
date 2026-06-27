@@ -30,7 +30,7 @@ declare module "fastify" {
   }
 }
 
-const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024 });
+const app = Fastify({ logger: true, bodyLimit: 25 * 1024 * 1024, pluginTimeout: 30000 });
 
 const JWT_SECRET = process.env.JWT_SECRET || "mediq-dev-secret-2024";
 
