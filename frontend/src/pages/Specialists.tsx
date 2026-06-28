@@ -59,7 +59,9 @@ export default function Specialists() {
       });
       await loadSpecialists();
     } catch (e: unknown) {
-      const msg = (e as { response?: { data?: { error?: string } } })?.response?.data?.error || "Enrichment failed";
+      const errData = (e as { response?: { data?: { error?: unknown; message?: string } } })?.response?.data;
+      const raw = errData?.error;
+      const msg = typeof raw === "string" ? raw : (errData?.message ?? "Enrichment failed");
       setEnrichMsg({ msg, ok: false });
     } finally {
       setEnriching(false);
